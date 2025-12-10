@@ -34,3 +34,4 @@ npm-debug.log*
 # Build
 /frontend/dist/
 /backend/*.db
+backend/.env

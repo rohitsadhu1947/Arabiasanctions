@@ -188,8 +188,11 @@ def init_db():
 # Initialize demo data
 def init_demo_data(db):
     """Initialize database with demo data"""
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    import hashlib
+    
+    def hash_password(password: str) -> str:
+        """Simple password hashing for demo"""
+        return hashlib.sha256(password.encode()).hexdigest()
     
     # Check if data already exists
     if db.query(DBSanctionList).first():
@@ -245,7 +248,7 @@ def init_demo_data(db):
     demo_user = DBUser(
         email="admin@insurance.com",
         full_name="Admin User",
-        hashed_password=pwd_context.hash("password123"),
+        hashed_password=hash_password("password123"),
         country_id=1,
         country_name="Qatar",
         branch_id=1,
