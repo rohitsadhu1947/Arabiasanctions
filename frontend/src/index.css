@@ -1,0 +1,101 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@theme {
+  --color-primary-50: #ecfdf8;
+  --color-primary-100: #d1faf0;
+  --color-primary-200: #a7f3e1;
+  --color-primary-300: #6ee7ce;
+  --color-primary-400: #34d3b4;
+  --color-primary-500: #10b99a;
+  --color-primary-600: #059680;
+  --color-primary-700: #047869;
+  --color-primary-800: #065f54;
+  --color-primary-900: #064e46;
+  --color-primary-950: #022c28;
+  
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
+
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--color-surface-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-600);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-surface-500);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-500), 0 0 0 4px var(--color-surface-900);
+}
+
+/* Glass effect utility */
+.glass {
+  background-color: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.glass-light {
+  background-color: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+/* Gradient border */
+.gradient-border {
+  background: linear-gradient(var(--color-surface-800), var(--color-surface-800)) padding-box,
+              linear-gradient(135deg, var(--color-primary-500), transparent) border-box;
+  border: 1px solid transparent;
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(to right, var(--color-primary-400), var(--color-primary-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
