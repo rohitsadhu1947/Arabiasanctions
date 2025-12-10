@@ -34,9 +34,25 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    import os
+    
     # Startup
     logger.info("Starting Screening Engine", version=settings.APP_VERSION)
     logger.info("Environment", env=settings.ENVIRONMENT, debug=settings.DEBUG)
+    
+    # Initialize database if DATABASE_URL is set (Neon PostgreSQL)
+    if os.getenv("DATABASE_URL"):
+        try:
+            from app.database import init_db, SessionLocal, init_demo_data
+            init_db()
+            db = SessionLocal()
+            init_demo_data(db)
+            db.close()
+            logger.info("Database initialized successfully (Neon PostgreSQL)")
+        except Exception as e:
+            logger.error("Database initialization error", error=str(e))
+    else:
+        logger.info("Running with in-memory storage (no DATABASE_URL)")
     
     yield
     
