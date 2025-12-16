@@ -25,15 +25,123 @@ interface Connection {
   strength: number;
 }
 
-// Demo data showing entity relationships
+// Demo data showing entity relationships - realistic GCC data
 const DEMO_ENTITIES: EntityNode[] = [
-  { id: '1', type: 'person', name: 'Mohammad Al-Rashid', risk: 'sanctioned', x: 400, y: 300, connections: ['2', '3', '5'], metadata: { dob: '1975-03-15', nationality: 'Syrian', lists: ['OFAC SDN', 'UN Consolidated'] } },
-  { id: '2', type: 'company', name: 'Gulf Trading LLC', risk: 'high', x: 600, y: 200, connections: ['1', '4'], metadata: { registration: 'UAE-12345', founded: '2015' } },
-  { id: '3', type: 'person', name: 'Ahmed Al-Rashid', risk: 'medium', x: 250, y: 200, connections: ['1', '6'], metadata: { relation: 'Brother', dob: '1980-07-22' } },
-  { id: '4', type: 'company', name: 'Horizon Investments', risk: 'medium', x: 700, y: 350, connections: ['2', '7'], metadata: { registration: 'QAT-98765' } },
-  { id: '5', type: 'address', name: 'Dubai Marina Tower', risk: 'low', x: 300, y: 450, connections: ['1', '6'], metadata: { address: 'Tower 5, Dubai Marina, UAE' } },
-  { id: '6', type: 'person', name: 'Fatima Al-Hassan', risk: 'low', x: 150, y: 350, connections: ['3', '5'], metadata: { relation: 'Associate' } },
-  { id: '7', type: 'transaction', name: '$2.5M Transfer', risk: 'high', x: 550, y: 450, connections: ['4'], metadata: { date: '2024-01-15', amount: '$2,500,000' } },
+  { 
+    id: '1', 
+    type: 'person', 
+    name: 'Mohammad Al-Rashid', 
+    risk: 'sanctioned', 
+    x: 400, y: 300, 
+    connections: ['2', '3', '5'], 
+    metadata: { 
+      dob: '1975-03-15', 
+      nationality: 'Syrian', 
+      lists: ['OFAC SDN', 'UN Consolidated'],
+      reason: 'Providing financial support to designated entities',
+      sanctionDate: '2019-05-20'
+    } 
+  },
+  { 
+    id: '2', 
+    type: 'company', 
+    name: 'Gulf Trading LLC', 
+    risk: 'high', 
+    x: 600, y: 200, 
+    connections: ['1', '4'], 
+    metadata: { 
+      registration: 'DED-123456',
+      country: 'UAE',
+      countryRisk: 'Low',
+      founded: '2015',
+      industry: 'Import/Export Trading',
+      uboStatus: 'Linked to sanctioned individual',
+      directors: ['Mohammad Al-Rashid (Sanctioned)', 'Unknown Nominee'],
+      riskReason: 'Beneficial owner is sanctioned individual'
+    } 
+  },
+  { 
+    id: '3', 
+    type: 'person', 
+    name: 'Ahmed Al-Rashid', 
+    risk: 'medium', 
+    x: 250, y: 200, 
+    connections: ['1', '6'], 
+    metadata: { 
+      relation: 'Brother of sanctioned individual',
+      dob: '1980-07-22',
+      nationality: 'Syrian',
+      pep: false,
+      riskReason: 'Family member of sanctioned person'
+    } 
+  },
+  { 
+    id: '4', 
+    type: 'company', 
+    name: 'Horizon Investments WLL', 
+    risk: 'medium', 
+    x: 700, y: 350, 
+    connections: ['2', '7'], 
+    metadata: { 
+      registration: 'QFC-98765',
+      country: 'Qatar',
+      countryRisk: 'Low',
+      founded: '2018',
+      industry: 'Financial Services',
+      uboStatus: 'Verified - Clear',
+      directors: ['Khalid Al-Thani', 'Sara Ahmed'],
+      riskReason: 'Business relationship with high-risk entity'
+    } 
+  },
+  { 
+    id: '5', 
+    type: 'address', 
+    name: 'Dubai Marina Tower 5', 
+    risk: 'low', 
+    x: 300, y: 450, 
+    connections: ['1', '6'], 
+    metadata: { 
+      fullAddress: 'Unit 2301, Tower 5, Dubai Marina, Dubai, UAE',
+      country: 'UAE',
+      countryRisk: 'Low',
+      propertyType: 'Residential Apartment',
+      registeredOccupants: 2,
+      riskReason: 'Known address of sanctioned individual'
+    } 
+  },
+  { 
+    id: '6', 
+    type: 'person', 
+    name: 'Fatima Al-Hassan', 
+    risk: 'low', 
+    x: 150, y: 350, 
+    connections: ['3', '5'], 
+    metadata: { 
+      relation: 'Business Associate',
+      dob: '1985-04-12',
+      nationality: 'Emirati',
+      pep: false,
+      occupation: 'Accountant',
+      riskReason: 'Indirect connection only'
+    } 
+  },
+  { 
+    id: '7', 
+    type: 'transaction', 
+    name: 'QAR 9.1M Transfer', 
+    risk: 'high', 
+    x: 550, y: 450, 
+    connections: ['4'], 
+    metadata: { 
+      date: '2024-01-15',
+      amount: 'QAR 9,100,000',
+      amountUSD: '~$2,500,000',
+      fromEntity: 'Gulf Trading LLC',
+      toEntity: 'Horizon Investments WLL',
+      transactionType: 'Wire Transfer',
+      riskReason: 'Large transfer from high-risk entity'
+    } 
+  },
 ];
 
 const DEMO_CONNECTIONS: Connection[] = [
@@ -45,6 +153,31 @@ const DEMO_CONNECTIONS: Connection[] = [
   { from: '5', to: '6', type: 'address', strength: 0.4 },
   { from: '4', to: '7', type: 'transaction', strength: 0.9 },
 ];
+
+// Risk Factor display component
+function RiskFactor({ label, value, score }: { label: string; value: string; score: number }) {
+  const getColor = (s: number) => {
+    if (s >= 80) return { bar: 'bg-red-500', text: 'text-red-400' };
+    if (s >= 60) return { bar: 'bg-orange-500', text: 'text-orange-400' };
+    if (s >= 40) return { bar: 'bg-yellow-500', text: 'text-yellow-400' };
+    if (s >= 20) return { bar: 'bg-green-500', text: 'text-green-400' };
+    return { bar: 'bg-green-600', text: 'text-green-300' };
+  };
+  
+  const colors = getColor(score);
+  
+  return (
+    <div>
+      <div className="flex justify-between text-sm mb-1">
+        <span className="text-slate-400">{label}</span>
+        <span className={colors.text}>{value}</span>
+      </div>
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className={`h-full ${colors.bar} rounded-full transition-all duration-500`} style={{ width: `${Math.max(score, 3)}%` }} />
+      </div>
+    </div>
+  );
+}
 
 // Toast notification component
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
@@ -678,167 +811,176 @@ export default function EntityGraph() {
                 </button>
               </div>
 
-              {/* Risk Score Breakdown - Different for Individual vs Corporate */}
+              {/* Risk Score Breakdown - Dynamic based on entity type and data */}
               <div className="bg-white/5 rounded-xl p-4 mb-4">
                 <h4 className="text-white font-medium mb-3 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-violet-400" />
-                  Risk Score Breakdown
-                  <span className="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 ml-auto">
-                    {selectedEntity.type === 'person' ? 'Individual' : 'Corporate'}
+                  Risk Assessment
+                  <span className="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 ml-auto capitalize">
+                    {selectedEntity.type === 'person' ? 'Individual' : 
+                     selectedEntity.type === 'company' ? 'Corporate' :
+                     selectedEntity.type === 'address' ? 'Address' : 'Transaction'}
                   </span>
                 </h4>
                 
-                {selectedEntity.type === 'person' ? (
-                  /* Individual Risk Factors */
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Full Name Match</span>
-                        <span className="text-red-400">95%</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '95%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Date of Birth</span>
-                        <span className="text-orange-400">80%</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '80%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Nationality</span>
-                        <span className="text-yellow-400">100%</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '100%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Passport/ID Match</span>
-                        <span className="text-green-400">N/A</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-slate-600 rounded-full" style={{ width: '0%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">PEP Status</span>
-                        <span className="text-yellow-400">Review</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '50%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Adverse Media</span>
-                        <span className="text-orange-400">Found</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '70%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Network Risk</span>
-                        <span className="text-red-400">HIGH</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '85%' }} />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Corporate Risk Factors */
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Company Name Match</span>
-                        <span className="text-red-400">92%</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '92%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Registration Number</span>
-                        <span className="text-green-400">Verified</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: '100%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Country of Incorporation</span>
-                        <span className="text-yellow-400">High Risk</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '75%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Beneficial Ownership</span>
-                        <span className="text-orange-400">Opaque</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '80%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Shell Company Indicators</span>
-                        <span className="text-red-400">Detected</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '85%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Industry Risk (NAICS)</span>
-                        <span className="text-yellow-400">Medium</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '55%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Sanctioned Directors/UBOs</span>
-                        <span className="text-red-400">1 Found</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '90%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Adverse Media</span>
-                        <span className="text-orange-400">3 Articles</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '65%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-400">Network Risk</span>
-                        <span className="text-red-400">HIGH</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '88%' }} />
-                      </div>
-                    </div>
+                {/* Dynamic Risk Factors based on entity type */}
+                <div className="space-y-3">
+                  {selectedEntity.type === 'person' && (
+                    <>
+                      <RiskFactor 
+                        label="Name Match Score" 
+                        value={selectedEntity.risk === 'sanctioned' ? '98%' : selectedEntity.risk === 'high' ? '85%' : '65%'}
+                        score={selectedEntity.risk === 'sanctioned' ? 98 : selectedEntity.risk === 'high' ? 85 : 65}
+                      />
+                      <RiskFactor 
+                        label="Date of Birth" 
+                        value={selectedEntity.metadata?.dob ? 'Matched' : 'Not Provided'}
+                        score={selectedEntity.metadata?.dob ? 90 : 0}
+                      />
+                      <RiskFactor 
+                        label="Nationality" 
+                        value={selectedEntity.metadata?.nationality || 'Unknown'}
+                        score={selectedEntity.metadata?.nationality === 'Syrian' || selectedEntity.metadata?.nationality === 'Iranian' ? 75 : 
+                               selectedEntity.metadata?.nationality === 'Emirati' || selectedEntity.metadata?.nationality === 'Qatari' ? 10 : 30}
+                      />
+                      <RiskFactor 
+                        label="PEP Status" 
+                        value={selectedEntity.metadata?.pep ? 'Yes - PEP' : 'Not a PEP'}
+                        score={selectedEntity.metadata?.pep ? 80 : 5}
+                      />
+                      <RiskFactor 
+                        label="Sanctions List Match" 
+                        value={selectedEntity.metadata?.lists ? `${selectedEntity.metadata.lists.length} List(s)` : 'Clear'}
+                        score={selectedEntity.metadata?.lists ? 100 : 0}
+                      />
+                      <RiskFactor 
+                        label="Network Connections" 
+                        value={`${selectedEntity.connections.length} connections`}
+                        score={Math.min(selectedEntity.connections.length * 20, 80)}
+                      />
+                    </>
+                  )}
+
+                  {selectedEntity.type === 'company' && (
+                    <>
+                      <RiskFactor 
+                        label="Company Name Match" 
+                        value={selectedEntity.risk === 'high' ? '88%' : '45%'}
+                        score={selectedEntity.risk === 'high' ? 88 : 45}
+                      />
+                      <RiskFactor 
+                        label="Registration Verified" 
+                        value={selectedEntity.metadata?.registration ? 'Yes' : 'Not Found'}
+                        score={selectedEntity.metadata?.registration ? 10 : 60}
+                      />
+                      <RiskFactor 
+                        label="Jurisdiction Risk" 
+                        value={selectedEntity.metadata?.countryRisk || 'Unknown'}
+                        score={selectedEntity.metadata?.countryRisk === 'Low' ? 15 : 
+                               selectedEntity.metadata?.countryRisk === 'Medium' ? 50 : 80}
+                      />
+                      <RiskFactor 
+                        label="Beneficial Ownership" 
+                        value={selectedEntity.metadata?.uboStatus || 'Unknown'}
+                        score={selectedEntity.metadata?.uboStatus?.includes('sanctioned') ? 95 : 
+                               selectedEntity.metadata?.uboStatus === 'Verified - Clear' ? 10 : 50}
+                      />
+                      <RiskFactor 
+                        label="Industry Risk" 
+                        value={selectedEntity.metadata?.industry || 'Not Classified'}
+                        score={selectedEntity.metadata?.industry?.includes('Trading') ? 55 : 
+                               selectedEntity.metadata?.industry?.includes('Financial') ? 45 : 30}
+                      />
+                      <RiskFactor 
+                        label="Director/UBO Sanctions" 
+                        value={selectedEntity.metadata?.directors?.some((d: string) => d.includes('Sanctioned')) ? 'Match Found' : 'Clear'}
+                        score={selectedEntity.metadata?.directors?.some((d: string) => d.includes('Sanctioned')) ? 100 : 5}
+                      />
+                      <RiskFactor 
+                        label="Network Exposure" 
+                        value={selectedEntity.metadata?.riskReason || 'Standard'}
+                        score={selectedEntity.risk === 'high' ? 85 : selectedEntity.risk === 'medium' ? 50 : 20}
+                      />
+                    </>
+                  )}
+
+                  {selectedEntity.type === 'address' && (
+                    <>
+                      <RiskFactor 
+                        label="Address Verification" 
+                        value="Verified"
+                        score={10}
+                      />
+                      <RiskFactor 
+                        label="Country Risk" 
+                        value={selectedEntity.metadata?.countryRisk || 'Low'}
+                        score={selectedEntity.metadata?.countryRisk === 'Low' ? 10 : 
+                               selectedEntity.metadata?.countryRisk === 'Medium' ? 45 : 75}
+                      />
+                      <RiskFactor 
+                        label="Property Type" 
+                        value={selectedEntity.metadata?.propertyType || 'Unknown'}
+                        score={15}
+                      />
+                      <RiskFactor 
+                        label="Known Occupants" 
+                        value={`${selectedEntity.metadata?.registeredOccupants || 0} registered`}
+                        score={20}
+                      />
+                      <RiskFactor 
+                        label="Linked to Sanctions" 
+                        value={selectedEntity.connections.some(id => entities.find(e => e.id === id)?.risk === 'sanctioned') ? 'Yes' : 'No'}
+                        score={selectedEntity.connections.some(id => entities.find(e => e.id === id)?.risk === 'sanctioned') ? 70 : 5}
+                      />
+                      <RiskFactor 
+                        label="Overall Address Risk" 
+                        value={selectedEntity.risk === 'low' ? 'Low' : selectedEntity.risk === 'medium' ? 'Medium' : 'High'}
+                        score={selectedEntity.risk === 'low' ? 25 : selectedEntity.risk === 'medium' ? 55 : 85}
+                      />
+                    </>
+                  )}
+
+                  {selectedEntity.type === 'transaction' && (
+                    <>
+                      <RiskFactor 
+                        label="Transaction Amount" 
+                        value={selectedEntity.metadata?.amount || 'Unknown'}
+                        score={selectedEntity.metadata?.amountUSD?.includes('2,500,000') ? 75 : 40}
+                      />
+                      <RiskFactor 
+                        label="Transaction Type" 
+                        value={selectedEntity.metadata?.transactionType || 'Unknown'}
+                        score={selectedEntity.metadata?.transactionType === 'Wire Transfer' ? 50 : 30}
+                      />
+                      <RiskFactor 
+                        label="Originator Risk" 
+                        value={selectedEntity.metadata?.fromEntity || 'Unknown'}
+                        score={85}
+                      />
+                      <RiskFactor 
+                        label="Beneficiary Risk" 
+                        value={selectedEntity.metadata?.toEntity || 'Unknown'}
+                        score={50}
+                      />
+                      <RiskFactor 
+                        label="Pattern Analysis" 
+                        value="Unusual Amount"
+                        score={70}
+                      />
+                      <RiskFactor 
+                        label="Overall Transaction Risk" 
+                        value={selectedEntity.risk === 'high' ? 'High' : 'Medium'}
+                        score={selectedEntity.risk === 'high' ? 80 : 50}
+                      />
+                    </>
+                  )}
+                </div>
+
+                {/* Risk Reason Summary */}
+                {selectedEntity.metadata?.riskReason && (
+                  <div className="mt-4 p-3 bg-white/5 rounded-lg border-l-2 border-yellow-500">
+                    <p className="text-xs text-slate-400 mb-1">Risk Reason</p>
+                    <p className="text-sm text-white">{selectedEntity.metadata.riskReason}</p>
                   </div>
                 )}
               </div>
