@@ -12,13 +12,18 @@ import {
   Building2,
   LogOut,
   ChevronLeft,
+  Network,
+  Radar,
+  Target,
 } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Command Center', href: '/command-center', icon: Radar, badge: 'NEW' },
   { name: 'Screening', href: '/screening', icon: Search },
+  { name: 'Entity Graph', href: '/entity-graph', icon: Network, badge: 'NEW' },
   { name: 'Workflow', href: '/workflow', icon: ClipboardList },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Audit Log', href: '/audit', icon: FileText },
@@ -95,7 +100,12 @@ export function Sidebar() {
                 {!collapsed && (
                   <span className="font-medium text-sm">{item.name}</span>
                 )}
-                {isActive && !collapsed && (
+                {!collapsed && 'badge' in item && item.badge && (
+                  <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold bg-violet-500 text-white rounded">
+                    {item.badge}
+                  </span>
+                )}
+                {isActive && !collapsed && !('badge' in item) && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400" />
                 )}
               </NavLink>

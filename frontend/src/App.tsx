@@ -10,6 +10,8 @@ import { AuditLog } from './pages/AuditLog';
 import { Users } from './pages/Users';
 import { SanctionsLists } from './pages/SanctionsLists';
 import { Settings } from './pages/Settings';
+import EntityGraph from './pages/EntityGraph';
+import InvestigationDashboard from './pages/InvestigationDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,7 +51,9 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="command-center" element={<InvestigationDashboard />} />
             <Route path="screening" element={<Screening />} />
+            <Route path="entity-graph" element={<EntityGraph />} />
             <Route path="workflow" element={<Workflow />} />
             <Route path="reports" element={<Reports />} />
             <Route path="audit" element={<AuditLog />} />
