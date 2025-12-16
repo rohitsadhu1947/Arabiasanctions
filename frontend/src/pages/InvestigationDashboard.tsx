@@ -458,9 +458,17 @@ export default function InvestigationDashboard() {
                 <Layers className="w-5 h-5 text-violet-400" />
                 Sanctions List Coverage
               </h3>
-              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
-                {LIST_COVERAGE.length} Lists Active
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+                  {LIST_COVERAGE.length} Lists Active
+                </span>
+                <button
+                  onClick={() => navigate('/admin/lists')}
+                  className="text-violet-400 text-sm hover:text-violet-300 transition-colors flex items-center gap-1"
+                >
+                  Manage <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             {/* Summary Stats */}
@@ -485,11 +493,18 @@ export default function InvestigationDashboard() {
             
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
               {LIST_COVERAGE.map((list, i) => (
-                <div key={i} className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                <div 
+                  key={i} 
+                  onClick={() => {
+                    showToast(`Opening ${list.name}...`, 'info');
+                    navigate('/admin/lists');
+                  }}
+                  className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer group"
+                >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${list.coverage === 100 ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                      <span className="text-white text-sm font-medium">{list.name}</span>
+                      <span className="text-white text-sm font-medium group-hover:text-violet-300 transition-colors">{list.name}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                         list.category === 'US' ? 'bg-blue-500/20 text-blue-400' :
                         list.category === 'UN' ? 'bg-cyan-500/20 text-cyan-400' :
@@ -500,7 +515,10 @@ export default function InvestigationDashboard() {
                         'bg-slate-500/20 text-slate-400'
                       }`}>{list.category}</span>
                     </div>
-                    <span className="text-slate-400 text-xs">{list.entries.toLocaleString()}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400 text-xs">{list.entries.toLocaleString()}</span>
+                      <ChevronRight className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
