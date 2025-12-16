@@ -9,6 +9,7 @@ import { Reports } from './pages/Reports';
 import { AuditLog } from './pages/AuditLog';
 import { Users } from './pages/Users';
 import { SanctionsLists } from './pages/SanctionsLists';
+import { Countries } from './pages/Countries';
 import { Settings } from './pages/Settings';
 import EntityGraph from './pages/EntityGraph';
 import InvestigationDashboard from './pages/InvestigationDashboard';
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="audit" element={<AuditLog />} />
             <Route path="admin/users" element={<Users />} />
             <Route path="admin/lists" element={<SanctionsLists />} />
+            <Route path="admin/countries" element={<Countries />} />
             <Route path="admin/settings" element={<Settings />} />
           </Route>
         </Routes>
