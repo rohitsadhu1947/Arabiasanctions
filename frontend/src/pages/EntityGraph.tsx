@@ -27,134 +27,256 @@ interface Connection {
   strength: number;
 }
 
-// Demo data showing entity relationships - realistic GCC data
-const DEMO_ENTITIES: EntityNode[] = [
-  { 
-    id: '1', 
-    type: 'person', 
-    name: 'Mohammad Al-Rashid', 
-    risk: 'sanctioned', 
-    x: 400, y: 300, 
-    connections: ['2', '3', '5'], 
-    metadata: { 
-      dob: '1975-03-15', 
-      nationality: 'Syrian', 
-      lists: ['OFAC SDN', 'UN Consolidated'],
-      reason: 'Providing financial support to designated entities',
-      sanctionDate: '2019-05-20'
-    } 
+// Multiple Network Examples - realistic GCC data
+interface NetworkExample {
+  id: string;
+  name: string;
+  description: string;
+  riskLevel: 'critical' | 'high' | 'medium';
+  entities: EntityNode[];
+  connections: Connection[];
+}
+
+const NETWORK_EXAMPLES: NetworkExample[] = [
+  // Network 1: Syrian Sanctions Network (Original)
+  {
+    id: 'network-1',
+    name: 'Syrian Sanctions Network',
+    description: 'OFAC SDN designated individual with UAE business connections',
+    riskLevel: 'critical',
+    entities: [
+      { 
+        id: '1', type: 'person', name: 'Mohammad Al-Rashid', risk: 'sanctioned', 
+        x: 400, y: 300, connections: ['2', '3', '5'], 
+        metadata: { dob: '1975-03-15', nationality: 'Syrian', lists: ['OFAC SDN', 'UN Consolidated'],
+          reason: 'Providing financial support to designated entities', sanctionDate: '2019-05-20' } 
+      },
+      { 
+        id: '2', type: 'company', name: 'Gulf Trading LLC', risk: 'high', 
+        x: 600, y: 200, connections: ['1', '4'], 
+        metadata: { registration: 'DED-123456', country: 'UAE', countryRisk: 'Low', founded: '2015',
+          industry: 'Import/Export Trading', uboStatus: 'Linked to sanctioned individual',
+          directors: ['Mohammad Al-Rashid (Sanctioned)', 'Unknown Nominee'], riskReason: 'Beneficial owner is sanctioned individual' } 
+      },
+      { 
+        id: '3', type: 'person', name: 'Ahmed Al-Rashid', risk: 'medium', 
+        x: 250, y: 200, connections: ['1', '6'], 
+        metadata: { relation: 'Brother', dob: '1980-07-22', nationality: 'Syrian', pep: false,
+          riskReason: 'Family member of sanctioned person' } 
+      },
+      { 
+        id: '4', type: 'company', name: 'Horizon Investments WLL', risk: 'medium', 
+        x: 700, y: 350, connections: ['2', '7'], 
+        metadata: { registration: 'QFC-98765', country: 'Qatar', countryRisk: 'Low', founded: '2018',
+          industry: 'Financial Services', uboStatus: 'Verified - Clear',
+          directors: ['Khalid Al-Thani', 'Sara Ahmed'], riskReason: 'Business relationship with high-risk entity' } 
+      },
+      { 
+        id: '5', type: 'address', name: 'Dubai Marina Tower 5', risk: 'low', 
+        x: 300, y: 450, connections: ['1', '6'], 
+        metadata: { fullAddress: 'Unit 2301, Tower 5, Dubai Marina, Dubai, UAE', country: 'UAE',
+          countryRisk: 'Low', propertyType: 'Residential Apartment', registeredOccupants: 2,
+          riskReason: 'Known address of sanctioned individual' } 
+      },
+      { 
+        id: '6', type: 'person', name: 'Fatima Al-Hassan', risk: 'low', 
+        x: 150, y: 350, connections: ['3', '5'], 
+        metadata: { relation: 'Business Associate', dob: '1985-04-12', nationality: 'Emirati',
+          pep: false, occupation: 'Accountant', riskReason: 'Indirect connection only' } 
+      },
+      { 
+        id: '7', type: 'transaction', name: 'QAR 9.1M Transfer', risk: 'high', 
+        x: 550, y: 450, connections: ['4'], 
+        metadata: { date: '2024-01-15', amount: 'QAR 9,100,000', amountUSD: '~$2,500,000',
+          fromEntity: 'Gulf Trading LLC', toEntity: 'Horizon Investments WLL',
+          transactionType: 'Wire Transfer', riskReason: 'Large transfer from high-risk entity' } 
+      },
+    ],
+    connections: [
+      { from: '1', to: '2', type: 'ownership', strength: 0.8 },
+      { from: '1', to: '3', type: 'family', strength: 0.9 },
+      { from: '1', to: '5', type: 'address', strength: 0.6 },
+      { from: '2', to: '4', type: 'transaction', strength: 0.7 },
+      { from: '3', to: '6', type: 'association', strength: 0.5 },
+      { from: '5', to: '6', type: 'address', strength: 0.4 },
+      { from: '4', to: '7', type: 'transaction', strength: 0.9 },
+    ],
   },
-  { 
-    id: '2', 
-    type: 'company', 
-    name: 'Gulf Trading LLC', 
-    risk: 'high', 
-    x: 600, y: 200, 
-    connections: ['1', '4'], 
-    metadata: { 
-      registration: 'DED-123456',
-      country: 'UAE',
-      countryRisk: 'Low',
-      founded: '2015',
-      industry: 'Import/Export Trading',
-      uboStatus: 'Linked to sanctioned individual',
-      directors: ['Mohammad Al-Rashid (Sanctioned)', 'Unknown Nominee'],
-      riskReason: 'Beneficial owner is sanctioned individual'
-    } 
+  // Network 2: Russian Sanctions Network
+  {
+    id: 'network-2',
+    name: 'Russian Entity Network',
+    description: 'EU sanctioned Russian oligarch with corporate structures',
+    riskLevel: 'critical',
+    entities: [
+      { 
+        id: '1', type: 'person', name: 'Viktor Petrov Ivanov', risk: 'sanctioned', 
+        x: 400, y: 300, connections: ['2', '3', '4'], 
+        metadata: { dob: '1970-05-15', nationality: 'Russian', lists: ['EU Consolidated', 'UK HMT'],
+          reason: 'Supporting Russian military operations', sanctionDate: '2022-02-28' } 
+      },
+      { 
+        id: '2', type: 'company', name: 'Kremlin Energy Holdings', risk: 'sanctioned', 
+        x: 600, y: 200, connections: ['1', '5', '6'], 
+        metadata: { registration: 'RU-123456', country: 'Russia', countryRisk: 'High', founded: '2008',
+          industry: 'Oil & Gas', uboStatus: 'Sanctioned Entity',
+          directors: ['Viktor Ivanov (Sanctioned)', 'State Nominee'], riskReason: 'Russian state-owned, sanctions evasion risk' } 
+      },
+      { 
+        id: '3', type: 'company', name: 'Cyprus Holding Ltd', risk: 'high', 
+        x: 250, y: 200, connections: ['1', '7'], 
+        metadata: { registration: 'CY-789012', country: 'Cyprus', countryRisk: 'Medium', founded: '2019',
+          industry: 'Holding Company', uboStatus: 'Obscured - nominee structure',
+          directors: ['Nominee Director'], riskReason: 'Shell company linked to sanctioned person' } 
+      },
+      { 
+        id: '4', type: 'address', name: 'The Pearl Tower, Doha', risk: 'medium', 
+        x: 550, y: 450, connections: ['1'], 
+        metadata: { fullAddress: 'Penthouse Suite, Pearl Tower, West Bay, Doha, Qatar', country: 'Qatar',
+          countryRisk: 'Low', propertyType: 'Luxury Residence', registeredOccupants: 1,
+          riskReason: 'Property linked to sanctioned individual' } 
+      },
+      { 
+        id: '5', type: 'transaction', name: 'EUR 45M Oil Payment', risk: 'high', 
+        x: 700, y: 350, connections: ['2'], 
+        metadata: { date: '2024-02-10', amount: 'EUR 45,000,000', amountUSD: '~$48,600,000',
+          fromEntity: 'Unknown Intermediary', toEntity: 'Kremlin Energy Holdings',
+          transactionType: 'SWIFT Transfer', riskReason: 'Potential sanctions circumvention' } 
+      },
+      { 
+        id: '6', type: 'company', name: 'Dubai Energy Trading FZE', risk: 'medium', 
+        x: 600, y: 450, connections: ['2'], 
+        metadata: { registration: 'DMCC-456789', country: 'UAE', countryRisk: 'Low', founded: '2022',
+          industry: 'Commodity Trading', uboStatus: 'Under Investigation',
+          directors: ['Anonymous Shareholders'], riskReason: 'Suspected intermediary for sanctioned entity' } 
+      },
+      { 
+        id: '7', type: 'person', name: 'Anna Ivanova', risk: 'medium', 
+        x: 150, y: 350, connections: ['3'], 
+        metadata: { relation: 'Spouse', dob: '1978-09-22', nationality: 'Russian',
+          pep: true, occupation: 'N/A', riskReason: 'PEP - spouse of sanctioned oligarch' } 
+      },
+    ],
+    connections: [
+      { from: '1', to: '2', type: 'ownership', strength: 0.95 },
+      { from: '1', to: '3', type: 'ownership', strength: 0.85 },
+      { from: '1', to: '4', type: 'address', strength: 0.7 },
+      { from: '2', to: '5', type: 'transaction', strength: 0.9 },
+      { from: '2', to: '6', type: 'transaction', strength: 0.6 },
+      { from: '3', to: '7', type: 'ownership', strength: 0.8 },
+    ],
   },
-  { 
-    id: '3', 
-    type: 'person', 
-    name: 'Ahmed Al-Rashid', 
-    risk: 'medium', 
-    x: 250, y: 200, 
-    connections: ['1', '6'], 
-    metadata: { 
-      relation: 'Brother of sanctioned individual',
-      dob: '1980-07-22',
-      nationality: 'Syrian',
-      pep: false,
-      riskReason: 'Family member of sanctioned person'
-    } 
+  // Network 3: Iran Trade Network
+  {
+    id: 'network-3',
+    name: 'Iran Trade Network',
+    description: 'OFAC designated Iranian entity with regional trade links',
+    riskLevel: 'high',
+    entities: [
+      { 
+        id: '1', type: 'company', name: 'Tehran Trading Company LLC', risk: 'sanctioned', 
+        x: 400, y: 300, connections: ['2', '3', '4'], 
+        metadata: { registration: 'IR-456789', country: 'Iran', countryRisk: 'Very High', founded: '2010',
+          industry: 'General Trading', uboStatus: 'IRGC Connected',
+          directors: ['State Controlled'], riskReason: 'OFAC SDN - Iranian front company', lists: ['OFAC SDN', 'UN Consolidated'] } 
+      },
+      { 
+        id: '2', type: 'company', name: 'Sharjah General Trading', risk: 'high', 
+        x: 600, y: 200, connections: ['1', '5'], 
+        metadata: { registration: 'SHJ-234567', country: 'UAE', countryRisk: 'Low', founded: '2017',
+          industry: 'Import/Export', uboStatus: 'Iranian Nationals',
+          directors: ['Hidden Beneficiaries'], riskReason: 'Suspected Iran trade facilitation' } 
+      },
+      { 
+        id: '3', type: 'person', name: 'Hassan Nasrallah Qasim', risk: 'sanctioned', 
+        x: 250, y: 200, connections: ['1'], 
+        metadata: { dob: '1972-09-05', nationality: 'Lebanese', lists: ['OFAC SDN'],
+          reason: 'Senior Hezbollah operative', sanctionDate: '2019-09-17' } 
+      },
+      { 
+        id: '4', type: 'transaction', name: 'USD 3.2M Wire', risk: 'high', 
+        x: 300, y: 450, connections: ['1'], 
+        metadata: { date: '2024-03-01', amount: 'USD 3,200,000', amountUSD: '$3,200,000',
+          fromEntity: 'Tehran Trading', toEntity: 'Sharjah General Trading',
+          transactionType: 'Trade Payment', riskReason: 'Trade with sanctioned entity' } 
+      },
+      { 
+        id: '5', type: 'address', name: 'Sharjah Industrial Area', risk: 'medium', 
+        x: 700, y: 350, connections: ['2'], 
+        metadata: { fullAddress: 'Warehouse 45, Industrial Area 15, Sharjah, UAE', country: 'UAE',
+          countryRisk: 'Low', propertyType: 'Commercial Warehouse', registeredOccupants: 0,
+          riskReason: 'Known transshipment location' } 
+      },
+    ],
+    connections: [
+      { from: '1', to: '2', type: 'transaction', strength: 0.85 },
+      { from: '1', to: '3', type: 'association', strength: 0.9 },
+      { from: '1', to: '4', type: 'transaction', strength: 0.95 },
+      { from: '2', to: '5', type: 'address', strength: 0.7 },
+    ],
   },
-  { 
-    id: '4', 
-    type: 'company', 
-    name: 'Horizon Investments WLL', 
-    risk: 'medium', 
-    x: 700, y: 350, 
-    connections: ['2', '7'], 
-    metadata: { 
-      registration: 'QFC-98765',
-      country: 'Qatar',
-      countryRisk: 'Low',
-      founded: '2018',
-      industry: 'Financial Services',
-      uboStatus: 'Verified - Clear',
-      directors: ['Khalid Al-Thani', 'Sara Ahmed'],
-      riskReason: 'Business relationship with high-risk entity'
-    } 
-  },
-  { 
-    id: '5', 
-    type: 'address', 
-    name: 'Dubai Marina Tower 5', 
-    risk: 'low', 
-    x: 300, y: 450, 
-    connections: ['1', '6'], 
-    metadata: { 
-      fullAddress: 'Unit 2301, Tower 5, Dubai Marina, Dubai, UAE',
-      country: 'UAE',
-      countryRisk: 'Low',
-      propertyType: 'Residential Apartment',
-      registeredOccupants: 2,
-      riskReason: 'Known address of sanctioned individual'
-    } 
-  },
-  { 
-    id: '6', 
-    type: 'person', 
-    name: 'Fatima Al-Hassan', 
-    risk: 'low', 
-    x: 150, y: 350, 
-    connections: ['3', '5'], 
-    metadata: { 
-      relation: 'Business Associate',
-      dob: '1985-04-12',
-      nationality: 'Emirati',
-      pep: false,
-      occupation: 'Accountant',
-      riskReason: 'Indirect connection only'
-    } 
-  },
-  { 
-    id: '7', 
-    type: 'transaction', 
-    name: 'QAR 9.1M Transfer', 
-    risk: 'high', 
-    x: 550, y: 450, 
-    connections: ['4'], 
-    metadata: { 
-      date: '2024-01-15',
-      amount: 'QAR 9,100,000',
-      amountUSD: '~$2,500,000',
-      fromEntity: 'Gulf Trading LLC',
-      toEntity: 'Horizon Investments WLL',
-      transactionType: 'Wire Transfer',
-      riskReason: 'Large transfer from high-risk entity'
-    } 
+  // Network 4: PEP Network (Saudi)
+  {
+    id: 'network-4',
+    name: 'GCC PEP Network',
+    description: 'Politically Exposed Persons requiring enhanced due diligence',
+    riskLevel: 'medium',
+    entities: [
+      { 
+        id: '1', type: 'person', name: 'HRH Prince Abdullah bin Fahd', risk: 'medium', 
+        x: 400, y: 300, connections: ['2', '3', '4'], 
+        metadata: { dob: '1965-08-20', nationality: 'Saudi Arabian', pep: true,
+          pepType: 'Royal Family Member', position: 'Senior Prince',
+          riskReason: 'PEP - requires enhanced due diligence' } 
+      },
+      { 
+        id: '2', type: 'company', name: 'Royal Holdings KSA', risk: 'medium', 
+        x: 600, y: 200, connections: ['1', '5'], 
+        metadata: { registration: 'CR-1234567890', country: 'Saudi Arabia', countryRisk: 'Low', founded: '2000',
+          industry: 'Diversified Holdings', uboStatus: 'Royal Family Owned',
+          directors: ['HRH Prince Abdullah', 'Family Office'], riskReason: 'PEP owned entity' } 
+      },
+      { 
+        id: '3', type: 'company', name: 'Riyadh Investment Corp', risk: 'low', 
+        x: 250, y: 200, connections: ['1', '6'], 
+        metadata: { registration: 'CR-9876543210', country: 'Saudi Arabia', countryRisk: 'Low', founded: '2015',
+          industry: 'Investment Management', uboStatus: 'Institutional',
+          directors: ['Professional Management'], riskReason: 'Connected to PEP investments' } 
+      },
+      { 
+        id: '4', type: 'address', name: 'Al-Olaya District Villa', risk: 'low', 
+        x: 550, y: 450, connections: ['1'], 
+        metadata: { fullAddress: 'Villa 15, Al-Olaya District, Riyadh, Saudi Arabia', country: 'Saudi Arabia',
+          countryRisk: 'Low', propertyType: 'Private Residence', registeredOccupants: 8,
+          riskReason: 'PEP primary residence' } 
+      },
+      { 
+        id: '5', type: 'transaction', name: 'SAR 50M Investment', risk: 'low', 
+        x: 700, y: 350, connections: ['2'], 
+        metadata: { date: '2024-01-20', amount: 'SAR 50,000,000', amountUSD: '~$13,300,000',
+          fromEntity: 'Royal Holdings KSA', toEntity: 'Real Estate Fund',
+          transactionType: 'Investment', riskReason: 'Large PEP transaction - monitored' } 
+      },
+      { 
+        id: '6', type: 'person', name: 'Dr. Mansour Al-Faisal', risk: 'low', 
+        x: 150, y: 350, connections: ['3'], 
+        metadata: { relation: 'Business Partner', dob: '1975-03-10', nationality: 'Saudi Arabian',
+          pep: false, occupation: 'Investment Banker', riskReason: 'Associate of PEP entity' } 
+      },
+    ],
+    connections: [
+      { from: '1', to: '2', type: 'ownership', strength: 0.95 },
+      { from: '1', to: '3', type: 'association', strength: 0.6 },
+      { from: '1', to: '4', type: 'address', strength: 0.8 },
+      { from: '2', to: '5', type: 'transaction', strength: 0.7 },
+      { from: '3', to: '6', type: 'association', strength: 0.5 },
+    ],
   },
 ];
 
-const DEMO_CONNECTIONS: Connection[] = [
-  { from: '1', to: '2', type: 'ownership', strength: 0.8 },
-  { from: '1', to: '3', type: 'family', strength: 0.9 },
-  { from: '1', to: '5', type: 'address', strength: 0.6 },
-  { from: '2', to: '4', type: 'transaction', strength: 0.7 },
-  { from: '3', to: '6', type: 'association', strength: 0.5 },
-  { from: '5', to: '6', type: 'address', strength: 0.4 },
-  { from: '4', to: '7', type: 'transaction', strength: 0.9 },
-];
+// Default to first network
+const DEMO_ENTITIES: EntityNode[] = NETWORK_EXAMPLES[0].entities;
+const DEMO_CONNECTIONS: Connection[] = NETWORK_EXAMPLES[0].connections;
 
 // Risk Factor display component
 function RiskFactor({ label, value, score }: { label: string; value: string; score: number }) {
@@ -204,8 +326,10 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 }
 
 export default function EntityGraph() {
-  const [entities, setEntities] = useState<EntityNode[]>(DEMO_ENTITIES);
-  const [connections] = useState<Connection[]>(DEMO_CONNECTIONS);
+  const [selectedNetworkId, setSelectedNetworkId] = useState<string>(NETWORK_EXAMPLES[0].id);
+  const selectedNetwork = NETWORK_EXAMPLES.find(n => n.id === selectedNetworkId) || NETWORK_EXAMPLES[0];
+  const [entities, setEntities] = useState<EntityNode[]>(selectedNetwork.entities);
+  const [connections, setConnections] = useState<Connection[]>(selectedNetwork.connections);
   const [selectedEntity, setSelectedEntity] = useState<EntityNode | null>(null);
   const [zoom, setZoom] = useState(1);
   const [filter, setFilter] = useState<string>('all');
@@ -213,6 +337,18 @@ export default function EntityGraph() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Update entities when network changes
+  const handleNetworkChange = (networkId: string) => {
+    const network = NETWORK_EXAMPLES.find(n => n.id === networkId);
+    if (network) {
+      setSelectedNetworkId(networkId);
+      setEntities(network.entities);
+      setConnections(network.connections);
+      setSelectedEntity(null);
+      showToast(`Loaded: ${network.name}`, 'info');
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -1025,6 +1161,19 @@ export default function EntityGraph() {
                   <Maximize2 className="w-4 h-4 text-slate-400" />
                 </button>
               </div>
+
+              {/* Network Selector */}
+              <select 
+                value={selectedNetworkId}
+                onChange={(e) => handleNetworkChange(e.target.value)}
+                className="bg-violet-600/20 border border-violet-500/50 rounded-lg px-3 py-2 text-white text-sm font-medium"
+              >
+                {NETWORK_EXAMPLES.map(network => (
+                  <option key={network.id} value={network.id} className="bg-slate-900">
+                    {network.name} ({network.riskLevel})
+                  </option>
+                ))}
+              </select>
 
               {/* Filter */}
               <select 

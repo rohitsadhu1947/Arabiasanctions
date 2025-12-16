@@ -60,6 +60,9 @@ interface DetectedChange {
   timestamp: string;
 }
 
+// Consistent with Reports API: 15,847 total monthly screenings
+// Customer database: 48,234 across GCC
+// Daily screenings: ~550-650 per day
 const DEMO_BATCH_JOBS: BatchJob[] = [
   {
     id: 'BATCH-001',
@@ -69,11 +72,11 @@ const DEMO_BATCH_JOBS: BatchJob[] = [
     schedule: '02:00 AM Daily',
     lastRun: '2024-12-16T02:00:00Z',
     nextRun: '2024-12-17T02:00:00Z',
-    entitiesProcessed: 45678,
-    matchesFound: 234,
-    newMatches: 12,
+    entitiesProcessed: 48234,  // Full customer database
+    matchesFound: 156,         // Active matches requiring review
+    newMatches: 8,
     clearedMatches: 3,
-    duration: '1h 23m',
+    duration: '1h 45m',
   },
   {
     id: 'BATCH-002',
@@ -83,11 +86,11 @@ const DEMO_BATCH_JOBS: BatchJob[] = [
     schedule: '06:00 AM Daily',
     lastRun: '2024-12-16T06:00:00Z',
     nextRun: '2024-12-17T06:00:00Z',
-    entitiesProcessed: 45678,
+    entitiesProcessed: 48234,  // Re-screen against new list entries only
     matchesFound: 5,
     newMatches: 5,
     clearedMatches: 0,
-    duration: '45m',
+    duration: '32m',
   },
   {
     id: 'BATCH-003',
@@ -97,11 +100,11 @@ const DEMO_BATCH_JOBS: BatchJob[] = [
     schedule: '04:00 AM Daily',
     lastRun: '2024-12-16T04:00:00Z',
     nextRun: '2024-12-17T04:00:00Z',
-    entitiesProcessed: 892,
+    entitiesProcessed: 156,    // Only existing matches
     matchesFound: 0,
     newMatches: 0,
-    clearedMatches: 8,
-    duration: '12m',
+    clearedMatches: 3,
+    duration: '8m',
   },
   {
     id: 'BATCH-004',
@@ -111,11 +114,11 @@ const DEMO_BATCH_JOBS: BatchJob[] = [
     schedule: 'Every 4 hours',
     lastRun: '2024-12-16T14:00:00Z',
     nextRun: '2024-12-16T18:00:00Z',
-    entitiesProcessed: 12456,
-    matchesFound: 45,
+    entitiesProcessed: 2834,   // Qatar customers only
+    matchesFound: 23,
     newMatches: 2,
     clearedMatches: 0,
-    duration: '23m',
+    duration: '18m',
   },
 ];
 
@@ -306,10 +309,11 @@ export function DailyScreening() {
     }
   };
 
+  // Consistent stats: Customer DB = 48,234, Active matches = 156 (from Reports API)
   const totalStats = {
-    entitiesMonitored: 45678,
-    activeMatches: 892,
-    listsMonitored: 15,
+    entitiesMonitored: 48234,  // Customer database across all GCC countries
+    activeMatches: 156,        // Matches pending review (from reports.totals.pending_review)
+    listsMonitored: 19,        // 13 global + 6 GCC local lists
     lastFullRun: '2024-12-16T02:00:00Z',
   };
 
@@ -490,12 +494,12 @@ export function DailyScreening() {
                     <div className="mt-3">
                       <div className="flex items-center justify-between text-xs text-surface-400 mb-1">
                         <span>Processing...</span>
-                        <span>{Math.floor((job.entitiesProcessed / 15000) * 100)}%</span>
+                        <span>{Math.min(Math.floor((job.entitiesProcessed / (job.type === 'custom' ? 2834 : 48234)) * 100), 100)}%</span>
                       </div>
                       <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-primary-500 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.floor((job.entitiesProcessed / 15000) * 100)}%` }}
+                          style={{ width: `${Math.min(Math.floor((job.entitiesProcessed / (job.type === 'custom' ? 2834 : 48234)) * 100), 100)}%` }}
                         />
                       </div>
                     </div>
