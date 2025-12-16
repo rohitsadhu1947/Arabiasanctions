@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -15,12 +16,13 @@ import {
   Settings,
   Download,
   Loader2,
-  Database,
   Users,
-  Building2,
   Shield,
   ChevronRight,
   XCircle,
+  X,
+  Save,
+  Eye,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
@@ -47,6 +49,15 @@ interface ListUpdate {
   entriesAdded: number;
   entriesRemoved: number;
   totalEntries: number;
+}
+
+interface DetectedChange {
+  id: string;
+  type: 'new_match' | 'cleared' | 'pep_alert';
+  title: string;
+  description: string;
+  entity: string;
+  timestamp: string;
 }
 
 const DEMO_BATCH_JOBS: BatchJob[] = [
@@ -115,22 +126,66 @@ const DEMO_LIST_UPDATES: ListUpdate[] = [
   { code: 'UK_HMT', name: 'UK HMT', lastUpdated: '2024-12-16T05:00:00Z', entriesAdded: 12, entriesRemoved: 3, totalEntries: 4532 },
 ];
 
+const DEMO_CHANGES: DetectedChange[] = [
+  {
+    id: 'CHG-001',
+    type: 'new_match',
+    title: 'New Match Detected',
+    description: 'Now matches UN Consolidated List entry added on Dec 16, 2024',
+    entity: 'Global Trade Holdings Ltd',
+    timestamp: '2024-12-16T08:30:00Z',
+  },
+  {
+    id: 'CHG-002',
+    type: 'cleared',
+    title: 'Entry Cleared',
+    description: 'Removed from OFAC SDN list on Dec 15, 2024 - Previous match can be reviewed',
+    entity: 'Ahmad Ali Hassan',
+    timestamp: '2024-12-16T06:00:00Z',
+  },
+  {
+    id: 'CHG-003',
+    type: 'pep_alert',
+    title: 'New PEP Match',
+    description: 'Added to PEP Global list - affects 2 existing customers',
+    entity: 'Sheikh Abdullah bin Faisal',
+    timestamp: '2024-12-16T07:15:00Z',
+  },
+];
+
 export function DailyScreening() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<BatchJob[]>(DEMO_BATCH_JOBS);
   const [listUpdates] = useState<ListUpdate[]>(DEMO_LIST_UPDATES);
-  const [loading, setLoading] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
+  const [detectedChanges, setDetectedChanges] = useState<DetectedChange[]>(DEMO_CHANGES);
   const [selectedJob, setSelectedJob] = useState<BatchJob | null>(null);
+  const [showConfig, setShowConfig] = useState(false);
+  const [showScheduleEdit, setShowScheduleEdit] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showChangeDetail, setShowChangeDetail] = useState<DetectedChange | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // Simulate running job progress
   useEffect(() => {
     const interval = setInterval(() => {
       setJobs(prev => prev.map(job => {
         if (job.status === 'running') {
-          return {
-            ...job,
-            entitiesProcessed: Math.min(job.entitiesProcessed + Math.floor(Math.random() * 500), 15000),
-          };
+          const newProcessed = Math.min(job.entitiesProcessed + Math.floor(Math.random() * 500), 15000);
+          if (newProcessed >= 15000) {
+            return {
+              ...job,
+              status: 'completed' as const,
+              entitiesProcessed: 15000,
+              lastRun: new Date().toISOString(),
+            };
+          }
+          return { ...job, entitiesProcessed: newProcessed };
         }
         return job;
       }));
@@ -138,28 +193,102 @@ export function DailyScreening() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleRunJob = (jobId: string) => {
+  const handleRunJob = (jobId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, status: 'running' } : job
+      job.id === jobId ? { ...job, status: 'running' as const, entitiesProcessed: 0 } : job
     ));
-    
-    // Simulate completion
-    setTimeout(() => {
-      setJobs(prev => prev.map(job => 
-        job.id === jobId ? { 
-          ...job, 
-          status: 'completed',
-          lastRun: new Date().toISOString(),
-          matchesFound: job.matchesFound + Math.floor(Math.random() * 10),
-        } : job
-      ));
-    }, 5000);
+    showToast(`Job started: ${jobs.find(j => j.id === jobId)?.name}`, 'success');
   };
 
-  const handlePauseJob = (jobId: string) => {
+  const handlePauseJob = (jobId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, status: 'paused' } : job
+      job.id === jobId ? { ...job, status: 'paused' as const } : job
     ));
+    showToast(`Job paused: ${jobs.find(j => j.id === jobId)?.name}`, 'warning');
+  };
+
+  const handleRefresh = () => {
+    showToast('Refreshing job status...', 'info');
+    setTimeout(() => showToast('Jobs refreshed successfully', 'success'), 1000);
+  };
+
+  const handleViewResults = () => {
+    setShowResults(true);
+  };
+
+  const handleExportReport = () => {
+    if (!selectedJob) return;
+    
+    const reportData = {
+      jobId: selectedJob.id,
+      jobName: selectedJob.name,
+      generatedAt: new Date().toISOString(),
+      status: selectedJob.status,
+      lastRun: selectedJob.lastRun,
+      statistics: {
+        entitiesProcessed: selectedJob.entitiesProcessed,
+        matchesFound: selectedJob.matchesFound,
+        newMatches: selectedJob.newMatches,
+        clearedMatches: selectedJob.clearedMatches,
+        duration: selectedJob.duration,
+      },
+      configuration: {
+        schedule: selectedJob.schedule,
+        type: selectedJob.type,
+        nextRun: selectedJob.nextRun,
+      },
+    };
+
+    // Generate CSV
+    let csv = 'Daily Screening Batch Report\n\n';
+    csv += `Job ID,${reportData.jobId}\n`;
+    csv += `Job Name,${reportData.jobName}\n`;
+    csv += `Generated At,${reportData.generatedAt}\n`;
+    csv += `Status,${reportData.status}\n`;
+    csv += `Last Run,${reportData.lastRun}\n\n`;
+    csv += 'Statistics\n';
+    csv += `Entities Processed,${reportData.statistics.entitiesProcessed}\n`;
+    csv += `Matches Found,${reportData.statistics.matchesFound}\n`;
+    csv += `New Matches,${reportData.statistics.newMatches}\n`;
+    csv += `Cleared Matches,${reportData.statistics.clearedMatches}\n`;
+    csv += `Duration,${reportData.statistics.duration}\n`;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `batch-report-${selectedJob.id}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Report exported successfully!', 'success');
+  };
+
+  const handleEditSchedule = () => {
+    setShowScheduleEdit(true);
+  };
+
+  const handleSaveSchedule = () => {
+    showToast('Schedule updated successfully!', 'success');
+    setShowScheduleEdit(false);
+  };
+
+  const handleReviewChange = (change: DetectedChange) => {
+    setShowChangeDetail(change);
+  };
+
+  const handleNavigateToWorkflow = () => {
+    navigate('/workflow');
+  };
+
+  const handleDismissChange = (changeId: string) => {
+    setDetectedChanges(prev => prev.filter(c => c.id !== changeId));
+    showToast('Alert dismissed', 'info');
+    setShowChangeDetail(null);
   };
 
   const getStatusBadge = (status: BatchJob['status']) => {
@@ -190,6 +319,21 @@ export function DailyScreening() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
+      {/* Toast Notification */}
+      {toast && (
+        <div className={cn(
+          "fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2",
+          toast.type === 'success' && "bg-green-500/90 text-white",
+          toast.type === 'info' && "bg-blue-500/90 text-white",
+          toast.type === 'warning' && "bg-yellow-500/90 text-black"
+        )}>
+          {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
+          {toast.type === 'info' && <RefreshCw className="w-4 h-4" />}
+          {toast.type === 'warning' && <AlertTriangle className="w-4 h-4" />}
+          {toast.message}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -267,7 +411,7 @@ export function DailyScreening() {
                 <CardTitle>Scheduled Jobs</CardTitle>
                 <CardDescription>Automated screening batch jobs</CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={handleRefresh}>
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </Button>
@@ -330,11 +474,11 @@ export function DailyScreening() {
                     </div>
                     <div className="flex items-center gap-2">
                       {job.status === 'running' ? (
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handlePauseJob(job.id); }}>
+                        <Button variant="ghost" size="sm" onClick={(e) => handlePauseJob(job.id, e)}>
                           <Pause className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleRunJob(job.id); }}>
+                        <Button variant="ghost" size="sm" onClick={(e) => handleRunJob(job.id, e)}>
                           <Play className="w-4 h-4" />
                         </Button>
                       )}
@@ -371,7 +515,11 @@ export function DailyScreening() {
           <CardContent>
             <div className="space-y-3">
               {listUpdates.map((list) => (
-                <div key={list.code} className="p-3 rounded-lg bg-surface-800/30">
+                <div 
+                  key={list.code} 
+                  className="p-3 rounded-lg bg-surface-800/30 cursor-pointer hover:bg-surface-800/50 transition-colors"
+                  onClick={() => navigate('/admin/lists')}
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm text-surface-200">{list.name}</span>
                     <span className="text-xs text-surface-500">
@@ -419,6 +567,7 @@ export function DailyScreening() {
             <div className="flex items-center justify-between">
               <CardTitle>Job Details: {selectedJob.name}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setSelectedJob(null)}>
+                <X className="w-4 h-4" />
                 Close
               </Button>
             </div>
@@ -446,15 +595,15 @@ export function DailyScreening() {
             </div>
             
             <div className="flex items-center gap-3 mt-4">
-              <Button variant="secondary">
-                <FileText className="w-4 h-4" />
+              <Button variant="secondary" onClick={handleViewResults}>
+                <Eye className="w-4 h-4" />
                 View Results
               </Button>
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={handleExportReport}>
                 <Download className="w-4 h-4" />
                 Export Report
               </Button>
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={handleEditSchedule}>
                 <Settings className="w-4 h-4" />
                 Edit Schedule
               </Button>
@@ -471,49 +620,259 @@ export function DailyScreening() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-surface-200">New Match Detected</p>
-                  <p className="text-sm text-surface-400">
-                    "Global Trade Holdings Ltd" now matches UN Consolidated List entry added on Dec 16, 2024
-                  </p>
+            {detectedChanges.map((change) => (
+              <div 
+                key={change.id}
+                className={cn(
+                  "p-4 rounded-lg border",
+                  change.type === 'new_match' && "bg-yellow-500/5 border-yellow-500/20",
+                  change.type === 'cleared' && "bg-green-500/5 border-green-500/20",
+                  change.type === 'pep_alert' && "bg-yellow-500/5 border-yellow-500/20"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  {change.type === 'cleared' ? (
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium text-surface-200">{change.title}</p>
+                    <p className="text-sm text-surface-400">
+                      "{change.entity}" {change.description}
+                    </p>
+                  </div>
+                  <Badge variant={change.type === 'cleared' ? 'success' : 'warning'}>
+                    {change.type === 'new_match' ? 'New Match' : change.type === 'cleared' ? 'Cleared' : 'PEP Alert'}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={() => handleReviewChange(change)}>
+                    {change.type === 'cleared' ? 'View' : 'Review'}
+                  </Button>
                 </div>
-                <Badge variant="warning">New Match</Badge>
-                <Button variant="ghost" size="sm">Review</Button>
               </div>
-            </div>
-            <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-surface-200">Entry Cleared</p>
-                  <p className="text-sm text-surface-400">
-                    "Ahmad Ali Hassan" removed from OFAC SDN list on Dec 15, 2024 - Previous match can be reviewed
-                  </p>
-                </div>
-                <Badge variant="success">Cleared</Badge>
-                <Button variant="ghost" size="sm">View</Button>
+            ))}
+            
+            {detectedChanges.length === 0 && (
+              <div className="text-center py-8 text-surface-500">
+                <CheckCircle className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No pending changes to review</p>
               </div>
-            </div>
-            <div className="p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-surface-200">New PEP Match</p>
-                  <p className="text-sm text-surface-400">
-                    "Sheikh Abdullah bin Faisal" added to PEP Global list - affects 2 existing customers
-                  </p>
-                </div>
-                <Badge variant="warning">PEP Alert</Badge>
-                <Button variant="ghost" size="sm">Review</Button>
-              </div>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Configuration Modal */}
+      {showConfig && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg bg-surface-900 rounded-xl border border-surface-700 shadow-xl"
+          >
+            <div className="p-6 border-b border-surface-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-surface-100">Daily Screening Configuration</h3>
+              <button onClick={() => setShowConfig(false)} className="p-2 rounded-lg hover:bg-surface-800 text-surface-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm text-surface-400 mb-2 block">Match Threshold (%)</label>
+                <Input type="number" defaultValue={75} min={50} max={100} />
+              </div>
+              <div>
+                <label className="text-sm text-surface-400 mb-2 block">Daily Run Time</label>
+                <Input type="time" defaultValue="02:00" />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-surface-300">Include PEP Screening</span>
+                <div className="w-12 h-6 rounded-full bg-primary-500 relative cursor-pointer">
+                  <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-surface-300">Include Adverse Media</span>
+                <div className="w-12 h-6 rounded-full bg-primary-500 relative cursor-pointer">
+                  <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-surface-300">Email Alerts for New Matches</span>
+                <div className="w-12 h-6 rounded-full bg-primary-500 relative cursor-pointer">
+                  <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-surface-700 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowConfig(false)}>Cancel</Button>
+              <Button onClick={() => { setShowConfig(false); showToast('Configuration saved!', 'success'); }}>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Schedule Edit Modal */}
+      {showScheduleEdit && selectedJob && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-surface-900 rounded-xl border border-surface-700 shadow-xl"
+          >
+            <div className="p-6 border-b border-surface-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-surface-100">Edit Schedule: {selectedJob.name}</h3>
+              <button onClick={() => setShowScheduleEdit(false)} className="p-2 rounded-lg hover:bg-surface-800 text-surface-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm text-surface-400 mb-2 block">Schedule Type</label>
+                <select className="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-2 text-surface-200">
+                  <option>Daily</option>
+                  <option>Every 4 hours</option>
+                  <option>Every 12 hours</option>
+                  <option>Weekly</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-surface-400 mb-2 block">Run Time</label>
+                <Input type="time" defaultValue="02:00" />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-surface-300">Enabled</span>
+                <div className="w-12 h-6 rounded-full bg-primary-500 relative cursor-pointer">
+                  <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-surface-700 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowScheduleEdit(false)}>Cancel</Button>
+              <Button onClick={handleSaveSchedule}>
+                <Save className="w-4 h-4" />
+                Save Schedule
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Results Modal */}
+      {showResults && selectedJob && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-3xl bg-surface-900 rounded-xl border border-surface-700 shadow-xl max-h-[80vh] overflow-hidden"
+          >
+            <div className="p-6 border-b border-surface-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-surface-100">Results: {selectedJob.name}</h3>
+              <button onClick={() => setShowResults(false)} className="p-2 rounded-lg hover:bg-surface-800 text-surface-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="p-3 rounded-lg bg-surface-800/50 text-center">
+                  <p className="text-2xl font-bold text-surface-100">{selectedJob.entitiesProcessed.toLocaleString()}</p>
+                  <p className="text-xs text-surface-500">Entities Screened</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-500/10 text-center">
+                  <p className="text-2xl font-bold text-yellow-400">{selectedJob.matchesFound}</p>
+                  <p className="text-xs text-surface-500">Total Matches</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                  <p className="text-2xl font-bold text-green-400">+{selectedJob.newMatches}</p>
+                  <p className="text-xs text-surface-500">New Matches</p>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-500/10 text-center">
+                  <p className="text-2xl font-bold text-blue-400">-{selectedJob.clearedMatches}</p>
+                  <p className="text-xs text-surface-500">Cleared</p>
+                </div>
+              </div>
+              
+              <h4 className="font-medium text-surface-200 mb-3">Sample Matches Found</h4>
+              <div className="space-y-2">
+                {[
+                  { name: 'Mohammad Al-Rashid', list: 'OFAC SDN', score: 92 },
+                  { name: 'Global Trade Holdings', list: 'UN Consolidated', score: 88 },
+                  { name: 'Ahmed Hassan Ibrahim', list: 'OFAC SDN', score: 85 },
+                ].map((match, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-surface-800/30 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-surface-200">{match.name}</p>
+                      <p className="text-xs text-surface-500">{match.list}</p>
+                    </div>
+                    <Badge variant={match.score >= 90 ? 'destructive' : 'warning'}>{match.score}%</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-6 border-t border-surface-700 flex justify-between">
+              <Button variant="secondary" onClick={handleNavigateToWorkflow}>
+                View in Workflow
+              </Button>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => setShowResults(false)}>Close</Button>
+                <Button onClick={handleExportReport}>
+                  <Download className="w-4 h-4" />
+                  Export Full Results
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Change Detail Modal */}
+      {showChangeDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-surface-900 rounded-xl border border-surface-700 shadow-xl"
+          >
+            <div className="p-6 border-b border-surface-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-surface-100">{showChangeDetail.title}</h3>
+              <button onClick={() => setShowChangeDetail(null)} className="p-2 rounded-lg hover:bg-surface-800 text-surface-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-surface-500">Entity</p>
+                <p className="text-lg font-medium text-surface-200">{showChangeDetail.entity}</p>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-surface-500">Description</p>
+                <p className="text-surface-300">{showChangeDetail.description}</p>
+              </div>
+              <div>
+                <p className="text-sm text-surface-500">Detected At</p>
+                <p className="text-surface-300">{new Date(showChangeDetail.timestamp).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="p-6 border-t border-surface-700 flex justify-between">
+              <Button variant="secondary" onClick={() => handleDismissChange(showChangeDetail.id)}>
+                Dismiss
+              </Button>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => setShowChangeDetail(null)}>Close</Button>
+                {showChangeDetail.type !== 'cleared' && (
+                  <Button onClick={() => { setShowChangeDetail(null); navigate('/workflow'); }}>
+                    <Eye className="w-4 h-4" />
+                    Open in Workflow
+                  </Button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }
-
