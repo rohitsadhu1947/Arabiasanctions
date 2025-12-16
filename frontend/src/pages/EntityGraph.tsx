@@ -6,6 +6,8 @@ import {
   ChevronRight, Globe, FileText, Link2, Check, X, Loader2
 } from 'lucide-react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface EntityNode {
   id: string;
@@ -277,142 +279,321 @@ export default function EntityGraph() {
   const handleGenerateReport = (entity: EntityNode) => {
     setActionLoading('report');
     
-    // Generate entity-type specific risk factors
-    const individualRiskFactors = [
-      { factor: 'Full Name Match', value: '95%', weight: 'Critical', score: 95 },
-      { factor: 'Date of Birth Match', value: '80%', weight: 'High', score: 80 },
-      { factor: 'Nationality Match', value: '100%', weight: 'High', score: 100 },
-      { factor: 'Passport/ID Match', value: 'N/A', weight: 'Medium', score: 0 },
-      { factor: 'PEP Status', value: 'Under Review', weight: 'High', score: 50 },
-      { factor: 'Adverse Media', value: '2 Articles Found', weight: 'Medium', score: 70 },
-      { factor: 'Network Risk', value: 'HIGH', weight: 'Critical', score: 85 },
+    // Create PDF document
+    const doc = new jsPDF();
+    const reportId = `RPT-${Date.now().toString(36).toUpperCase()}`;
+    const generatedDate = new Date().toLocaleString('en-GB', { 
+      dateStyle: 'long', 
+      timeStyle: 'short' 
+    });
+
+    // Color definitions
+    const primaryColor: [number, number, number] = [99, 102, 241]; // Violet
+    const dangerColor: [number, number, number] = [239, 68, 68]; // Red
+    const warningColor: [number, number, number] = [245, 158, 11]; // Amber
+    const successColor: [number, number, number] = [34, 197, 94]; // Green
+
+    // Header with logo area
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SCREENING REPORT', 20, 18);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('ScreenGuard AML Compliance Engine', 20, 26);
+    
+    // Report ID on right
+    doc.setFontSize(9);
+    doc.text(`Report ID: ${reportId}`, 140, 18);
+    doc.text(`Generated: ${generatedDate}`, 140, 24);
+
+    // Risk Level Banner
+    const riskColor = entity.risk === 'sanctioned' ? dangerColor : 
+                      entity.risk === 'high' ? dangerColor :
+                      entity.risk === 'medium' ? warningColor : successColor;
+    
+    doc.setFillColor(...riskColor);
+    doc.rect(0, 35, 210, 12, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`RISK LEVEL: ${entity.risk.toUpperCase()}`, 20, 43);
+    
+    const recommendation = entity.risk === 'sanctioned' ? 'BLOCK TRANSACTION' : 
+                          entity.risk === 'high' ? 'ESCALATE FOR REVIEW' :
+                          entity.risk === 'medium' ? 'ENHANCED DUE DILIGENCE' : 'STANDARD PROCESSING';
+    doc.text(`RECOMMENDATION: ${recommendation}`, 110, 43);
+
+    // Entity Information Section
+    let yPos = 55;
+    
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ENTITY INFORMATION', 20, yPos);
+    
+    yPos += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const entityType = entity.type === 'person' ? 'Individual' : 
+                       entity.type === 'company' ? 'Corporate Entity' :
+                       entity.type === 'address' ? 'Address' : 'Transaction';
+
+    const entityInfo = [
+      ['Entity Name', entity.name],
+      ['Entity Type', entityType],
+      ['Risk Classification', entity.risk.toUpperCase()],
     ];
 
-    const corporateRiskFactors = [
-      { factor: 'Company Name Match', value: '92%', weight: 'Critical', score: 92 },
-      { factor: 'Registration Number', value: 'Verified', weight: 'High', score: 100 },
-      { factor: 'Country of Incorporation', value: 'High Risk Jurisdiction', weight: 'Critical', score: 75 },
-      { factor: 'Beneficial Ownership', value: 'Opaque Structure', weight: 'Critical', score: 80 },
-      { factor: 'Shell Company Indicators', value: 'Detected', weight: 'Critical', score: 85 },
-      { factor: 'Industry Risk (NAICS)', value: 'Medium - Financial Services', weight: 'Medium', score: 55 },
-      { factor: 'Sanctioned Directors/UBOs', value: '1 Match Found', weight: 'Critical', score: 90 },
-      { factor: 'Adverse Media', value: '3 Negative Articles', weight: 'High', score: 65 },
-      { factor: 'Regulatory Actions', value: 'None Found', weight: 'Medium', score: 0 },
-      { factor: 'Network Risk', value: 'HIGH', weight: 'Critical', score: 88 },
-    ];
+    if (entity.type === 'person') {
+      entityInfo.push(
+        ['Date of Birth', entity.metadata?.dob || 'Not provided'],
+        ['Nationality', entity.metadata?.nationality || 'Unknown'],
+        ['PEP Status', entity.metadata?.pep ? 'Yes - Politically Exposed Person' : 'No']
+      );
+    } else if (entity.type === 'company') {
+      entityInfo.push(
+        ['Registration Number', entity.metadata?.registration || 'Not provided'],
+        ['Country of Incorporation', entity.metadata?.country || 'Unknown'],
+        ['Industry', entity.metadata?.industry || 'Not classified'],
+        ['Date Established', entity.metadata?.founded || 'Unknown']
+      );
+    } else if (entity.type === 'address') {
+      entityInfo.push(
+        ['Full Address', entity.metadata?.fullAddress || entity.name],
+        ['Country', entity.metadata?.country || 'Unknown'],
+        ['Property Type', entity.metadata?.propertyType || 'Unknown']
+      );
+    } else if (entity.type === 'transaction') {
+      entityInfo.push(
+        ['Amount', entity.metadata?.amount || 'Unknown'],
+        ['Transaction Date', entity.metadata?.date || 'Unknown'],
+        ['Transaction Type', entity.metadata?.transactionType || 'Unknown'],
+        ['From Entity', entity.metadata?.fromEntity || 'Unknown'],
+        ['To Entity', entity.metadata?.toEntity || 'Unknown']
+      );
+    }
 
-    // Generate a detailed report
-    const report = {
-      reportId: `RPT-${Date.now()}`,
-      generatedAt: new Date().toISOString(),
-      generatedBy: 'ScreenGuard AML Engine v1.0',
-      
-      entity: {
-        name: entity.name,
-        type: entity.type === 'person' ? 'Individual' : 'Corporate Entity',
-        riskLevel: entity.risk.toUpperCase(),
-        overallScore: entity.risk === 'sanctioned' ? 100 : entity.risk === 'high' ? 85 : entity.risk === 'medium' ? 60 : 30,
-        metadata: entity.metadata,
+    autoTable(doc, {
+      startY: yPos,
+      head: [],
+      body: entityInfo,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+        1: { cellWidth: 120 }
       },
-      
-      screeningDetails: entity.type === 'person' ? {
-        fullName: entity.name,
-        dateOfBirth: entity.metadata?.dob || 'Not provided',
-        nationality: entity.metadata?.nationality || 'Unknown',
-        passportNumber: 'Not provided',
-        nationalId: 'Not provided',
-        addressCountry: entity.metadata?.address || 'Unknown',
-      } : {
-        companyName: entity.name,
-        registrationNumber: entity.metadata?.registration || 'Not provided',
-        countryOfIncorporation: entity.metadata?.country || 'Unknown',
-        incorporationDate: entity.metadata?.founded || 'Unknown',
-        registeredAddress: entity.metadata?.address || 'Not provided',
-        businessType: entity.metadata?.industry || 'Not classified',
-        ultimateBeneficialOwners: entity.metadata?.ubos || ['Information not available'],
-        directors: entity.metadata?.directors || ['Information not available'],
-      },
-      
-      sanctionsScreening: {
-        listsChecked: ['OFAC SDN', 'UN Consolidated', 'EU Financial Sanctions', 'UK HMT', 'Local Watchlist'],
-        matchesFound: entity.risk === 'sanctioned' ? 1 : 0,
-        matchedLists: entity.metadata?.lists || [],
-        sanctionPrograms: entity.metadata?.programs || [],
-      },
-      
-      riskFactors: entity.type === 'person' ? individualRiskFactors : corporateRiskFactors,
-      
-      networkAnalysis: {
-        totalConnections: entity.connections.length,
-        highRiskConnections: entity.connections.filter(id => {
-          const conn = entities.find(e => e.id === id);
-          return conn && (conn.risk === 'high' || conn.risk === 'sanctioned');
-        }).length,
-        connectedEntities: entity.connections.map(id => {
-          const connected = entities.find(e => e.id === id);
-          return connected ? { 
-            name: connected.name, 
-            type: connected.type === 'person' ? 'Individual' : 'Corporate',
-            riskLevel: connected.risk.toUpperCase(),
-            relationship: connections.find(c => 
-              (c.from === entity.id && c.to === id) || (c.to === entity.id && c.from === id)
-            )?.type || 'Associated'
-          } : null;
-        }).filter(Boolean),
-      },
-      
-      recommendation: {
-        action: entity.risk === 'sanctioned' 
-          ? 'BLOCK' 
-          : entity.risk === 'high' 
-          ? 'ESCALATE'
-          : entity.risk === 'medium'
-          ? 'REVIEW'
-          : 'APPROVE',
-        description: entity.risk === 'sanctioned' 
-          ? 'Entity is on active sanctions list. Transaction must be blocked and reported to compliance.'
-          : entity.risk === 'high' 
-          ? 'High risk indicators detected. Escalate to senior compliance officer for review.'
-          : entity.risk === 'medium'
-          ? 'Medium risk indicators present. Enhanced due diligence recommended.'
-          : 'Low risk profile. Standard monitoring procedures apply.',
-        requiredActions: entity.risk === 'sanctioned' ? [
-          'Block all transactions immediately',
-          'File Suspicious Activity Report (SAR)',
-          'Notify compliance officer',
-          'Document decision and rationale',
-        ] : entity.risk === 'high' ? [
-          'Conduct enhanced due diligence',
-          'Verify beneficial ownership',
-          'Review adverse media in detail',
-          'Escalate to senior reviewer',
-        ] : [
-          'Continue standard monitoring',
-          'Update records as needed',
-        ],
-      },
-      
-      auditTrail: {
-        screenedBy: 'System - Automated Screening',
-        screenedAt: new Date().toISOString(),
-        reviewStatus: 'Pending Review',
-        caseId: null,
-      },
-    };
+      margin: { left: 20 }
+    });
 
-    // Download as JSON
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `entity-report-${entity.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // Risk Factors Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RISK ASSESSMENT', 20, yPos);
+    yPos += 5;
+
+    // Generate risk factors based on entity type
+    let riskFactors: string[][] = [];
+    
+    if (entity.type === 'person') {
+      riskFactors = [
+        ['Name Match Score', entity.risk === 'sanctioned' ? '98%' : '65%', entity.risk === 'sanctioned' ? 'Critical' : 'Medium'],
+        ['Date of Birth', entity.metadata?.dob ? 'Matched' : 'Not Provided', entity.metadata?.dob ? 'High' : 'Low'],
+        ['Nationality Risk', entity.metadata?.nationality || 'Unknown', 
+          ['Syrian', 'Iranian', 'North Korean'].includes(entity.metadata?.nationality) ? 'High' : 'Low'],
+        ['PEP Status', entity.metadata?.pep ? 'Yes' : 'No', entity.metadata?.pep ? 'High' : 'Low'],
+        ['Sanctions Match', entity.metadata?.lists ? `${entity.metadata.lists.length} list(s)` : 'Clear', 
+          entity.metadata?.lists ? 'Critical' : 'Low'],
+        ['Network Connections', `${entity.connections.length} entities`, 
+          entity.connections.length > 3 ? 'Medium' : 'Low'],
+      ];
+    } else if (entity.type === 'company') {
+      riskFactors = [
+        ['Company Name Match', entity.risk === 'high' ? '88%' : '45%', entity.risk === 'high' ? 'High' : 'Low'],
+        ['Registration Status', entity.metadata?.registration ? 'Verified' : 'Not Found', 
+          entity.metadata?.registration ? 'Low' : 'Medium'],
+        ['Jurisdiction Risk', entity.metadata?.countryRisk || 'Unknown', 
+          entity.metadata?.countryRisk === 'Low' ? 'Low' : 'High'],
+        ['Beneficial Ownership', entity.metadata?.uboStatus || 'Unknown', 
+          entity.metadata?.uboStatus?.includes('sanctioned') ? 'Critical' : 'Medium'],
+        ['Industry Classification', entity.metadata?.industry || 'Unknown', 'Medium'],
+        ['Director/UBO Screening', 
+          entity.metadata?.directors?.some((d: string) => d.includes('Sanctioned')) ? 'Match Found' : 'Clear',
+          entity.metadata?.directors?.some((d: string) => d.includes('Sanctioned')) ? 'Critical' : 'Low'],
+      ];
+    } else if (entity.type === 'address') {
+      riskFactors = [
+        ['Address Verification', 'Verified', 'Low'],
+        ['Country Risk', entity.metadata?.countryRisk || 'Low', entity.metadata?.countryRisk || 'Low'],
+        ['Property Type', entity.metadata?.propertyType || 'Unknown', 'Low'],
+        ['Linked to Sanctioned Entity', 
+          entity.connections.some(id => entities.find(e => e.id === id)?.risk === 'sanctioned') ? 'Yes' : 'No',
+          entity.connections.some(id => entities.find(e => e.id === id)?.risk === 'sanctioned') ? 'High' : 'Low'],
+      ];
+    } else {
+      riskFactors = [
+        ['Transaction Amount', entity.metadata?.amount || 'Unknown', 'Medium'],
+        ['Originator Risk', 'Under Review', 'Medium'],
+        ['Beneficiary Risk', 'Under Review', 'Medium'],
+        ['Pattern Analysis', 'Unusual Amount', 'High'],
+      ];
+    }
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Risk Factor', 'Value', 'Risk Level']],
+      body: riskFactors,
+      theme: 'striped',
+      headStyles: { fillColor: primaryColor, fontSize: 10 },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: {
+        2: { 
+          cellWidth: 30,
+          fontStyle: 'bold'
+        }
+      },
+      margin: { left: 20, right: 20 },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const value = data.cell.raw as string;
+          if (value === 'Critical' || value === 'High') {
+            data.cell.styles.textColor = dangerColor;
+          } else if (value === 'Medium') {
+            data.cell.styles.textColor = warningColor;
+          } else {
+            data.cell.styles.textColor = successColor;
+          }
+        }
+      }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // Network Analysis Section
+    if (entity.connections.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('NETWORK ANALYSIS', 20, yPos);
+      yPos += 5;
+
+      const networkData = entity.connections.map(id => {
+        const connected = entities.find(e => e.id === id);
+        const conn = connections.find(c => 
+          (c.from === entity.id && c.to === id) || (c.to === entity.id && c.from === id)
+        );
+        return connected ? [
+          connected.name,
+          connected.type === 'person' ? 'Individual' : 
+           connected.type === 'company' ? 'Corporate' : 
+           connected.type === 'address' ? 'Address' : 'Transaction',
+          conn?.type || 'Associated',
+          connected.risk.toUpperCase()
+        ] : null;
+      }).filter(Boolean) as string[][];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Connected Entity', 'Type', 'Relationship', 'Risk']],
+        body: networkData,
+        theme: 'striped',
+        headStyles: { fillColor: primaryColor, fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 4 },
+        margin: { left: 20, right: 20 },
+        didParseCell: (data) => {
+          if (data.column.index === 3 && data.section === 'body') {
+            const value = data.cell.raw as string;
+            if (value === 'SANCTIONED' || value === 'HIGH') {
+              data.cell.styles.textColor = dangerColor;
+            } else if (value === 'MEDIUM') {
+              data.cell.styles.textColor = warningColor;
+            } else {
+              data.cell.styles.textColor = successColor;
+            }
+          }
+        }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Sanctions Screening Results
+    if (entity.metadata?.lists && entity.metadata.lists.length > 0) {
+      doc.setFillColor(...dangerColor);
+      doc.rect(20, yPos, 170, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('⚠ SANCTIONS LIST MATCH', 25, yPos + 6);
+      
+      yPos += 12;
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      entity.metadata.lists.forEach((list: string) => {
+        doc.text(`• ${list}`, 25, yPos);
+        yPos += 6;
+      });
+      
+      if (entity.metadata?.reason) {
+        doc.text(`Reason: ${entity.metadata.reason}`, 25, yPos);
+        yPos += 6;
+      }
+      if (entity.metadata?.sanctionDate) {
+        doc.text(`Sanction Date: ${entity.metadata.sanctionDate}`, 25, yPos);
+        yPos += 6;
+      }
+      
+      yPos += 5;
+    }
+
+    // Recommendation Section
+    doc.setFillColor(240, 240, 240);
+    doc.rect(20, yPos, 170, 35, 'F');
+    
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECOMMENDED ACTION', 25, yPos + 8);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const actionText = entity.risk === 'sanctioned' 
+      ? 'BLOCK all transactions. File SAR immediately. Notify compliance officer.'
+      : entity.risk === 'high' 
+      ? 'ESCALATE to senior compliance officer for enhanced due diligence review.'
+      : entity.risk === 'medium'
+      ? 'Conduct enhanced due diligence before proceeding with transaction.'
+      : 'Standard processing permitted. Continue ongoing monitoring.';
+    
+    const splitAction = doc.splitTextToSize(actionText, 160);
+    doc.text(splitAction, 25, yPos + 18);
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Page ${i} of ${pageCount}`, 100, 290, { align: 'center' });
+      doc.text('CONFIDENTIAL - For authorized personnel only', 20, 290);
+      doc.text('ScreenGuard AML Engine', 170, 290);
+    }
+
+    // Save PDF
+    doc.save(`screening-report-${entity.name.replace(/\s+/g, '-').toLowerCase()}-${reportId}.pdf`);
 
     setActionLoading(null);
-    showToast(`Report generated for ${entity.name}`, 'success');
+    showToast(`PDF Report generated for ${entity.name}`, 'success');
   };
 
   const handleExportGraph = () => {
