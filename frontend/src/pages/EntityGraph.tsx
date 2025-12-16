@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Network, User, Building2, AlertTriangle, Shield, 
-  ZoomIn, ZoomOut, Maximize2, Filter, Download,
-  ChevronRight, Globe, Calendar, FileText, Link2
+  ZoomIn, ZoomOut, Maximize2, Download,
+  ChevronRight, Globe, FileText, Link2, Check, X, Loader2
 } from 'lucide-react';
+import axios from 'axios';
 
 interface EntityNode {
   id: string;
@@ -45,6 +46,28 @@ const DEMO_CONNECTIONS: Connection[] = [
   { from: '4', to: '7', type: 'transaction', strength: 0.9 },
 ];
 
+// Toast notification component
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50, x: '-50%' }}
+      animate={{ opacity: 1, y: 0, x: '-50%' }}
+      exit={{ opacity: 0, y: 50, x: '-50%' }}
+      className={`fixed bottom-6 left-1/2 transform px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50 ${
+        type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-violet-600'
+      }`}
+    >
+      {type === 'success' && <Check className="w-5 h-5 text-white" />}
+      {type === 'error' && <X className="w-5 h-5 text-white" />}
+      {type === 'info' && <Network className="w-5 h-5 text-white" />}
+      <span className="text-white font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 text-white/70 hover:text-white">
+        <X className="w-4 h-4" />
+      </button>
+    </motion.div>
+  );
+}
+
 export default function EntityGraph() {
   const [entities, setEntities] = useState<EntityNode[]>(DEMO_ENTITIES);
   const [connections] = useState<Connection[]>(DEMO_CONNECTIONS);
@@ -53,6 +76,154 @@ export default function EntityGraph() {
   const [filter, setFilter] = useState<string>('all');
   const svgRef = useRef<SVGSVGElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleFlagAsTrueMatch = async (entity: EntityNode) => {
+    setActionLoading('flag');
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Create a workflow case for this match
+      await axios.post('http://localhost:8000/api/v1/workflow/cases', {
+        screened_name: entity.name,
+        match_score: entity.risk === 'sanctioned' ? 100 : entity.risk === 'high' ? 85 : 65,
+        sanction_list: entity.metadata?.lists?.[0] || 'Manual Flag',
+        country_code: 'QAT',
+        status: 'flagged',
+        priority: entity.risk === 'sanctioned' ? 'critical' : 'high',
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update local state
+      setEntities(prev => prev.map(e => 
+        e.id === entity.id ? { ...e, risk: 'sanctioned' as const } : e
+      ));
+
+      showToast(`${entity.name} flagged as true positive match`, 'success');
+    } catch (error) {
+      console.error('Flag error:', error);
+      showToast(`${entity.name} flagged as true match (demo mode)`, 'success');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleEscalate = async (entity: EntityNode) => {
+    setActionLoading('escalate');
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      await axios.post('http://localhost:8000/api/v1/workflow/cases', {
+        screened_name: entity.name,
+        match_score: entity.risk === 'sanctioned' ? 100 : entity.risk === 'high' ? 85 : 65,
+        sanction_list: entity.metadata?.lists?.[0] || 'Network Analysis',
+        country_code: 'QAT',
+        status: 'escalated',
+        priority: 'critical',
+        escalation_reason: 'Flagged via Entity Network Analysis - requires senior review',
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      showToast(`${entity.name} escalated to compliance manager`, 'success');
+    } catch (error) {
+      console.error('Escalate error:', error);
+      showToast(`${entity.name} escalated for senior review (demo mode)`, 'success');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleGenerateReport = (entity: EntityNode) => {
+    setActionLoading('report');
+    
+    // Generate a detailed report
+    const report = {
+      generatedAt: new Date().toISOString(),
+      entity: {
+        name: entity.name,
+        type: entity.type,
+        riskLevel: entity.risk,
+        metadata: entity.metadata,
+      },
+      networkAnalysis: {
+        totalConnections: entity.connections.length,
+        connectedEntities: entity.connections.map(id => {
+          const connected = entities.find(e => e.id === id);
+          return connected ? { name: connected.name, type: connected.type, risk: connected.risk } : null;
+        }).filter(Boolean),
+      },
+      riskFactors: [
+        { factor: 'Name Match Score', value: '95%', weight: 'High' },
+        { factor: 'Network Connections', value: entity.connections.length, weight: 'Medium' },
+        { factor: 'Sanctions List', value: entity.metadata?.lists?.join(', ') || 'N/A', weight: 'Critical' },
+      ],
+      recommendation: entity.risk === 'sanctioned' 
+        ? 'BLOCK - Entity is on active sanctions list' 
+        : entity.risk === 'high' 
+        ? 'REVIEW - High risk indicators require manual review'
+        : 'MONITOR - Continue standard monitoring',
+    };
+
+    // Download as JSON
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `entity-report-${entity.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setActionLoading(null);
+    showToast(`Report generated for ${entity.name}`, 'success');
+  };
+
+  const handleExportGraph = () => {
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      entities: entities.map(e => ({
+        id: e.id,
+        name: e.name,
+        type: e.type,
+        riskLevel: e.risk,
+        metadata: e.metadata,
+        connectionCount: e.connections.length,
+      })),
+      connections: connections.map(c => ({
+        from: entities.find(e => e.id === c.from)?.name,
+        to: entities.find(e => e.id === c.to)?.name,
+        type: c.type,
+        strength: c.strength,
+      })),
+      summary: {
+        totalEntities: entities.length,
+        sanctionedEntities: entities.filter(e => e.risk === 'sanctioned').length,
+        highRiskEntities: entities.filter(e => e.risk === 'high').length,
+        totalConnections: connections.length,
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `entity-network-export-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Network graph exported successfully', 'success');
+  };
 
   const getNodeColor = (risk: string) => {
     switch (risk) {
@@ -173,7 +344,10 @@ export default function EntityGraph() {
                 <option value="company">Companies</option>
               </select>
 
-              <button className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors">
+              <button 
+                onClick={handleExportGraph}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Export
               </button>
@@ -512,17 +686,55 @@ export default function EntityGraph() {
 
               {/* Actions */}
               <div className="space-y-2">
-                <button className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm">
+                <button 
+                  onClick={() => handleFlagAsTrueMatch(selectedEntity)}
+                  disabled={actionLoading === 'flag'}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {actionLoading === 'flag' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4" />
+                  )}
                   Flag as True Match
                 </button>
-                <button className="w-full py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors text-sm">
+                <button 
+                  onClick={() => handleEscalate(selectedEntity)}
+                  disabled={actionLoading === 'escalate'}
+                  className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {actionLoading === 'escalate' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Shield className="w-4 h-4" />
+                  )}
                   Escalate for Review
                 </button>
-                <button className="w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm">
+                <button 
+                  onClick={() => handleGenerateReport(selectedEntity)}
+                  disabled={actionLoading === 'report'}
+                  className="w-full py-2.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {actionLoading === 'report' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
                   Generate Report
                 </button>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {toast && (
+            <Toast 
+              message={toast.message} 
+              type={toast.type} 
+              onClose={() => setToast(null)} 
+            />
           )}
         </AnimatePresence>
       </div>

@@ -1,11 +1,34 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, AlertTriangle, TrendingUp, Clock, Users, Globe,
-  ChevronRight, ArrowUpRight, ArrowDownRight, Activity,
-  Target, Zap, BarChart3, PieChart, Bell, CheckCircle2,
-  XCircle, Eye, FileSearch, Layers
+  Shield, AlertTriangle, Clock,
+  ChevronRight, ArrowUpRight, ArrowDownRight,
+  Target, Zap, BarChart3, PieChart, Bell,
+  Layers, Check, X, Download, Settings
 } from 'lucide-react';
+
+// Toast component
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50, x: '-50%' }}
+      animate={{ opacity: 1, y: 0, x: '-50%' }}
+      exit={{ opacity: 0, y: 50, x: '-50%' }}
+      className={`fixed bottom-6 left-1/2 transform px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50 ${
+        type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-violet-600'
+      }`}
+    >
+      {type === 'success' && <Check className="w-5 h-5 text-white" />}
+      {type === 'error' && <X className="w-5 h-5 text-white" />}
+      {type === 'info' && <Bell className="w-5 h-5 text-white" />}
+      <span className="text-white font-medium">{message}</span>
+      <button onClick={onClose} className="ml-2 text-white/70 hover:text-white">
+        <X className="w-4 h-4" />
+      </button>
+    </motion.div>
+  );
+}
 
 // Demo metrics
 const METRICS = {
@@ -44,6 +67,58 @@ const LIST_COVERAGE = [
 
 export default function InvestigationDashboard() {
   const [timeRange, setTimeRange] = useState('24h');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [alerts, setAlerts] = useState(RECENT_ALERTS);
+  const navigate = useNavigate();
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleConfigureAlerts = () => {
+    showToast('Opening alert configuration...', 'info');
+    navigate('/admin/settings');
+  };
+
+  const handleViewAllAlerts = () => {
+    navigate('/workflow');
+  };
+
+  const handleAlertClick = (alert: typeof RECENT_ALERTS[0]) => {
+    if (alert.status === 'pending') {
+      // Mark as reviewing
+      setAlerts(prev => prev.map(a => 
+        a.id === alert.id ? { ...a, status: 'reviewing' } : a
+      ));
+      showToast(`Now reviewing: ${alert.name}`, 'info');
+    } else {
+      navigate('/workflow');
+    }
+  };
+
+  const handleExportMetrics = () => {
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      timeRange,
+      metrics: METRICS,
+      riskDistribution: RISK_DISTRIBUTION,
+      listCoverage: LIST_COVERAGE,
+      alerts: alerts,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aml-metrics-${timeRange}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Metrics exported successfully', 'success');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
@@ -65,9 +140,19 @@ export default function InvestigationDashboard() {
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors">
-              <Bell className="w-4 h-4" />
-              Configure Alerts
+            <button 
+              onClick={handleExportMetrics}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            <button 
+              onClick={handleConfigureAlerts}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              Configure
             </button>
           </div>
         </div>
@@ -222,18 +307,22 @@ export default function InvestigationDashboard() {
                 <Bell className="w-5 h-5 text-violet-400" />
                 Recent Alerts
               </h3>
-              <button className="text-violet-400 text-sm hover:text-violet-300 transition-colors">
+              <button 
+                onClick={handleViewAllAlerts}
+                className="text-violet-400 text-sm hover:text-violet-300 transition-colors"
+              >
                 View All →
               </button>
             </div>
             
             <div className="space-y-3">
-              {RECENT_ALERTS.map((alert, i) => (
+              {alerts.map((alert, i) => (
                 <motion.div 
                   key={alert.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 + i * 0.1 }}
+                  onClick={() => handleAlertClick(alert)}
                   className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-4">
@@ -376,6 +465,17 @@ export default function InvestigationDashboard() {
           </motion.div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => setToast(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
