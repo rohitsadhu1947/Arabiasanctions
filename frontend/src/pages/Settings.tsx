@@ -60,6 +60,7 @@ export function Settings() {
   const [hasChanges, setHasChanges] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [showAddBranch, setShowAddBranch] = useState(false);
+  const [newBranch, setNewBranch] = useState({ name: '', code: '', address: '' });
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorAuth: true,
     ipWhitelisting: false,
@@ -612,13 +613,58 @@ export function Settings() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <Input label="Branch Name *" placeholder="e.g., Al Wakra Branch" />
-              <Input label="Branch Code *" placeholder="e.g., WAK001" />
-              <Input label="Address" placeholder="Branch address..." />
+              <Input 
+                label="Branch Name *" 
+                placeholder="e.g., Al Wakra Branch"
+                value={newBranch.name}
+                onChange={(e) => setNewBranch({ ...newBranch, name: e.target.value })}
+              />
+              <Input 
+                label="Branch Code *" 
+                placeholder="e.g., WAK001"
+                value={newBranch.code}
+                onChange={(e) => setNewBranch({ ...newBranch, code: e.target.value })}
+              />
+              <Input 
+                label="Address" 
+                placeholder="Branch address..."
+                value={newBranch.address}
+                onChange={(e) => setNewBranch({ ...newBranch, address: e.target.value })}
+              />
             </div>
             <div className="p-6 border-t border-surface-700 flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowAddBranch(false)}>Cancel</Button>
-              <Button onClick={() => { setShowAddBranch(false); alert('Branch added successfully!'); }}>
+              <Button variant="secondary" onClick={() => { setShowAddBranch(false); setNewBranch({ name: '', code: '', address: '' }); }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => { 
+                  if (!newBranch.name || !newBranch.code) {
+                    alert('Please fill in branch name and code');
+                    return;
+                  }
+                  // Add branch to local state immediately
+                  const newBranchData = {
+                    id: Date.now(),
+                    name: newBranch.name,
+                    code: newBranch.code,
+                  };
+                  
+                  setCountries(prev => prev.map(c => 
+                    c.id === selectedCountry.id 
+                      ? { ...c, branches: [...c.branches, newBranchData] }
+                      : c
+                  ));
+                  
+                  setSelectedCountry(prev => prev ? {
+                    ...prev,
+                    branches: [...prev.branches, newBranchData]
+                  } : null);
+                  
+                  setShowAddBranch(false); 
+                  setNewBranch({ name: '', code: '', address: '' });
+                }}
+                disabled={!newBranch.name || !newBranch.code}
+              >
                 <Save className="w-4 h-4" />
                 Add Branch
               </Button>

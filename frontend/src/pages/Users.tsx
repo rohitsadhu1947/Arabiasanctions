@@ -166,6 +166,10 @@ export function Users() {
     
     setSaving(true);
     try {
+      const selectedCountry = countries.find(c => c.id === newUser.country_id);
+      const selectedBranch = selectedCountryBranches.find(b => b.id === Number(newUser.branch_id));
+      const selectedRole = roles.find(r => r.id === newUser.role_id);
+      
       const response = await adminApi.createUser({
         full_name: newUser.full_name,
         email: newUser.email,
@@ -177,10 +181,25 @@ export function Users() {
       });
       
       if (response.success) {
+        // Add new user to local state immediately
+        const createdUser: User = {
+          id: response.data?.id || Date.now(),
+          email: newUser.email,
+          full_name: newUser.full_name,
+          country_id: newUser.country_id,
+          country_name: selectedCountry?.name || 'Qatar',
+          branch_id: newUser.branch_id ? Number(newUser.branch_id) : null,
+          branch_name: selectedBranch?.name || null,
+          roles: [selectedRole?.name || 'Compliance Analyst'],
+          permissions: ['screen:individual', 'workflow:view'],
+          is_active: true,
+          last_login: null,
+          created_at: new Date().toISOString(),
+        };
+        
+        setUsers(prev => [createdUser, ...prev]);
         setShowAddUser(false);
         setNewUser({ full_name: '', email: '', password: '', country_id: 1, branch_id: '', role_id: 4 });
-        await loadUsers();
-        alert('User created successfully!');
       }
     } catch (error: any) {
       console.error('Failed to create user:', error);
