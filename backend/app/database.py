@@ -198,20 +198,88 @@ def init_demo_data(db):
     if db.query(DBSanctionList).first():
         return  # Already initialized
     
-    # Create sanction lists
+    # Create comprehensive sanction lists
     lists = [
-        DBSanctionList(code="OFAC_SDN", name="OFAC Specially Designated Nationals", source="US Treasury", 
-                       url="https://www.treasury.gov/ofac/downloads/sdn.xml", list_type="global", is_active=True),
+        # === US LISTS (OFAC & Others) ===
+        DBSanctionList(code="OFAC_SDN", name="OFAC Specially Designated Nationals", source="US Treasury OFAC", 
+                       url="https://www.treasury.gov/ofac/downloads/sdn.xml", list_type="global", is_active=True,
+                       description="Primary US sanctions list covering terrorism, narcotics, WMD proliferation"),
+        DBSanctionList(code="OFAC_CONS", name="OFAC Consolidated Sanctions List", source="US Treasury OFAC",
+                       url="https://www.treasury.gov/ofac/downloads/consolidated/cons_prim.xml", list_type="global", is_active=True,
+                       description="Combined non-SDN lists including sectoral sanctions"),
+        DBSanctionList(code="BIS_EL", name="BIS Entity List", source="US Commerce Department",
+                       list_type="global", is_active=True,
+                       description="Export control restrictions - entities of concern"),
+        DBSanctionList(code="BIS_DPL", name="BIS Denied Persons List", source="US Commerce Department",
+                       list_type="global", is_active=True,
+                       description="Individuals denied export privileges"),
+        
+        # === UNITED NATIONS ===
         DBSanctionList(code="UN_CONSOLIDATED", name="UN Security Council Consolidated List", source="United Nations",
-                       url="https://scsanctions.un.org/resources/xml/en/consolidated.xml", list_type="global", is_active=True),
+                       url="https://scsanctions.un.org/resources/xml/en/consolidated.xml", list_type="global", is_active=True,
+                       description="Global terrorism and proliferation designations"),
+        DBSanctionList(code="UN_TALIBAN", name="UN Taliban Sanctions (1988)", source="United Nations",
+                       list_type="global", is_active=True, description="Afghanistan Taliban-related designations"),
+        DBSanctionList(code="UN_DPRK", name="UN DPRK Sanctions (1718)", source="United Nations",
+                       list_type="global", is_active=True, description="North Korea sanctions"),
+        
+        # === EUROPEAN UNION ===
         DBSanctionList(code="EU_CONSOLIDATED", name="EU Consolidated Financial Sanctions", source="European Union",
-                       list_type="global", is_active=True),
+                       url="https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content", 
+                       list_type="global", is_active=True,
+                       description="All EU restrictive measures"),
+        DBSanctionList(code="EU_TERRORIST", name="EU Terrorist List", source="European Union",
+                       list_type="global", is_active=True, description="EU terrorism designations"),
+        
+        # === UNITED KINGDOM ===
+        DBSanctionList(code="UK_HMT", name="UK HMT Consolidated List", source="HM Treasury",
+                       url="https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/consolidated_list.xml",
+                       list_type="global", is_active=True,
+                       description="UK financial sanctions list"),
+        DBSanctionList(code="UK_OFSI", name="UK OFSI Consolidated List", source="Office of Financial Sanctions",
+                       list_type="global", is_active=True, description="UK sanctions implementation list"),
+        
+        # === OTHER MAJOR JURISDICTIONS ===
+        DBSanctionList(code="AU_DFAT", name="Australia DFAT Sanctions", source="Australian Government",
+                       list_type="global", is_active=True, description="Australian consolidated sanctions"),
+        DBSanctionList(code="CA_OSFI", name="Canada OSFI Consolidated List", source="Canadian Government",
+                       list_type="global", is_active=True, description="Canadian sanctions list"),
+        DBSanctionList(code="CH_SECO", name="Switzerland SECO Sanctions", source="Swiss Government",
+                       list_type="global", is_active=True, description="Swiss sanctions list"),
+        
+        # === INTERNATIONAL ORGANIZATIONS ===
+        DBSanctionList(code="INTERPOL_RN", name="Interpol Red Notices", source="Interpol",
+                       list_type="global", is_active=True, description="International wanted persons"),
+        DBSanctionList(code="WORLDBANK_DB", name="World Bank Debarred Firms", source="World Bank",
+                       list_type="global", is_active=True, description="Entities debarred from WB projects"),
+        DBSanctionList(code="FATF_HIGHRISK", name="FATF High-Risk Jurisdictions", source="FATF",
+                       list_type="global", is_active=True, description="Countries with AML/CFT deficiencies"),
+        
+        # === PEP & ENHANCED SCREENING ===
+        DBSanctionList(code="PEP_GLOBAL", name="Politically Exposed Persons", source="Multiple Sources",
+                       list_type="global", is_active=True, description="PEPs and their relatives/associates"),
+        DBSanctionList(code="ADVERSE_MEDIA", name="Adverse Media Screening", source="News Aggregators",
+                       list_type="global", is_active=True, description="Negative news and media mentions"),
+        
+        # === GCC LOCAL LISTS ===
         DBSanctionList(code="LOCAL_QAT", name="Qatar Local Watchlist", country_code="QAT", 
                        list_type="local", description="Internal watchlist for Qatar operations", is_active=True),
+        DBSanctionList(code="QAT_QFIU", name="Qatar FIU List", country_code="QAT", source="Qatar Central Bank",
+                       list_type="local", description="Qatar Financial Intelligence Unit designations", is_active=True),
         DBSanctionList(code="LOCAL_UAE", name="UAE Local Watchlist", country_code="UAE",
                        list_type="local", description="Internal watchlist for UAE operations", is_active=True),
+        DBSanctionList(code="UAE_NAMLCFTC", name="UAE National AML Committee List", country_code="UAE", source="CBUAE",
+                       list_type="local", description="UAE national AML/CFT committee designations", is_active=True),
         DBSanctionList(code="LOCAL_SAU", name="Saudi Arabia Local Watchlist", country_code="SAU",
                        list_type="local", description="Internal watchlist for Saudi operations", is_active=True),
+        DBSanctionList(code="SAU_SAFIU", name="Saudi FIU List", country_code="SAU", source="SAMA",
+                       list_type="local", description="Saudi Financial Intelligence Unit designations", is_active=True),
+        DBSanctionList(code="LOCAL_KWT", name="Kuwait Local Watchlist", country_code="KWT",
+                       list_type="local", description="Internal watchlist for Kuwait operations", is_active=True),
+        DBSanctionList(code="LOCAL_BHR", name="Bahrain Local Watchlist", country_code="BHR",
+                       list_type="local", description="Internal watchlist for Bahrain operations", is_active=True),
+        DBSanctionList(code="LOCAL_OMN", name="Oman Local Watchlist", country_code="OMN",
+                       list_type="local", description="Internal watchlist for Oman operations", is_active=True),
     ]
     db.add_all(lists)
     

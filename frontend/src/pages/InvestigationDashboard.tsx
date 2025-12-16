@@ -58,11 +58,29 @@ const RECENT_ALERTS = [
 ];
 
 const LIST_COVERAGE = [
-  { name: 'OFAC SDN', entries: 12453, coverage: 100, lastUpdate: '2 hours ago' },
-  { name: 'UN Consolidated', entries: 8234, coverage: 100, lastUpdate: '4 hours ago' },
-  { name: 'EU Financial', entries: 6789, coverage: 100, lastUpdate: '1 day ago' },
-  { name: 'UK HMT', entries: 4532, coverage: 95, lastUpdate: '2 days ago' },
-  { name: 'Qatar Local', entries: 156, coverage: 100, lastUpdate: '1 hour ago' },
+  // US Lists
+  { name: 'OFAC SDN', entries: 12453, coverage: 100, lastUpdate: '2 hours ago', category: 'US' },
+  { name: 'OFAC Consolidated', entries: 3892, coverage: 100, lastUpdate: '2 hours ago', category: 'US' },
+  { name: 'BIS Entity List', entries: 1456, coverage: 100, lastUpdate: '1 day ago', category: 'US' },
+  // UN Lists
+  { name: 'UN Consolidated', entries: 8234, coverage: 100, lastUpdate: '4 hours ago', category: 'UN' },
+  // EU Lists  
+  { name: 'EU Financial', entries: 6789, coverage: 100, lastUpdate: '1 day ago', category: 'EU' },
+  { name: 'EU Terrorist List', entries: 892, coverage: 100, lastUpdate: '1 day ago', category: 'EU' },
+  // UK Lists
+  { name: 'UK HMT', entries: 4532, coverage: 100, lastUpdate: '6 hours ago', category: 'UK' },
+  { name: 'UK OFSI', entries: 4201, coverage: 100, lastUpdate: '6 hours ago', category: 'UK' },
+  // International
+  { name: 'Interpol Red Notices', entries: 7823, coverage: 95, lastUpdate: '1 day ago', category: 'Intl' },
+  { name: 'World Bank Debarred', entries: 1234, coverage: 100, lastUpdate: '3 days ago', category: 'Intl' },
+  { name: 'FATF High-Risk', entries: 23, coverage: 100, lastUpdate: '1 week ago', category: 'Intl' },
+  // PEP & Media
+  { name: 'PEP Global', entries: 45678, coverage: 98, lastUpdate: '12 hours ago', category: 'PEP' },
+  { name: 'Adverse Media', entries: 125000, coverage: 95, lastUpdate: 'Real-time', category: 'Media' },
+  // GCC Local
+  { name: 'Qatar FIU', entries: 89, coverage: 100, lastUpdate: '1 hour ago', category: 'GCC' },
+  { name: 'UAE NAMLCFTC', entries: 156, coverage: 100, lastUpdate: '2 hours ago', category: 'GCC' },
+  { name: 'Saudi SAFIU', entries: 234, coverage: 100, lastUpdate: '3 hours ago', category: 'GCC' },
 ];
 
 export default function InvestigationDashboard() {
@@ -435,29 +453,63 @@ export default function InvestigationDashboard() {
             transition={{ delay: 0.8 }}
             className="bg-white/5 border border-white/10 rounded-2xl p-6"
           >
-            <h3 className="text-white font-semibold flex items-center gap-2 mb-6">
-              <Layers className="w-5 h-5 text-violet-400" />
-              Sanctions List Coverage
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Layers className="w-5 h-5 text-violet-400" />
+                Sanctions List Coverage
+              </h3>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+                {LIST_COVERAGE.length} Lists Active
+              </span>
+            </div>
             
-            <div className="space-y-4">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-white">{LIST_COVERAGE.filter(l => l.category === 'US').length}</p>
+                <p className="text-xs text-slate-400">US Lists</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-white">{LIST_COVERAGE.filter(l => ['UN', 'EU', 'UK'].includes(l.category)).length}</p>
+                <p className="text-xs text-slate-400">Intl Lists</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-white">{LIST_COVERAGE.filter(l => l.category === 'GCC').length}</p>
+                <p className="text-xs text-slate-400">GCC Lists</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-white">{LIST_COVERAGE.reduce((sum, l) => sum + l.entries, 0).toLocaleString()}</p>
+                <p className="text-xs text-slate-400">Total Records</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
               {LIST_COVERAGE.map((list, i) => (
-                <div key={i} className="p-4 bg-white/5 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
+                <div key={i} className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${list.coverage === 100 ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                      <span className="text-white font-medium">{list.name}</span>
+                      <span className="text-white text-sm font-medium">{list.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        list.category === 'US' ? 'bg-blue-500/20 text-blue-400' :
+                        list.category === 'UN' ? 'bg-cyan-500/20 text-cyan-400' :
+                        list.category === 'EU' ? 'bg-indigo-500/20 text-indigo-400' :
+                        list.category === 'UK' ? 'bg-purple-500/20 text-purple-400' :
+                        list.category === 'GCC' ? 'bg-emerald-500/20 text-emerald-400' :
+                        list.category === 'PEP' ? 'bg-orange-500/20 text-orange-400' :
+                        'bg-slate-500/20 text-slate-400'
+                      }`}>{list.category}</span>
                     </div>
-                    <span className="text-slate-400 text-sm">{list.entries.toLocaleString()} entries</span>
+                    <span className="text-slate-400 text-xs">{list.entries.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full ${list.coverage === 100 ? 'bg-green-500' : 'bg-yellow-500'}`}
                         style={{ width: `${list.coverage}%` }}
                       />
                     </div>
-                    <span className="text-slate-400 text-xs">Updated {list.lastUpdate}</span>
+                    <span className="text-slate-500 text-[10px] w-16 text-right">{list.lastUpdate}</span>
                   </div>
                 </div>
               ))}
