@@ -15,6 +15,7 @@ import {
   Network,
   Radar,
   Target,
+  Calendar,
 } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Command Center', href: '/command-center', icon: Radar, badge: 'NEW' },
   { name: 'Screening', href: '/screening', icon: Search },
+  { name: 'Daily Screening', href: '/daily-screening', icon: Calendar },
   { name: 'Entity Graph', href: '/entity-graph', icon: Network, badge: 'NEW' },
   { name: 'Workflow', href: '/workflow', icon: ClipboardList },
   { name: 'Reports', href: '/reports', icon: BarChart3 },

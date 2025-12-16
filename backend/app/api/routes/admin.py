@@ -415,20 +415,38 @@ async def create_user(
     current_user: CurrentUser = Depends(require_permission("admin:users"))
 ):
     """Create a new user."""
+    # Get country name
+    country = next((c for c in DEMO_COUNTRIES if c.id == request.country_id), None)
+    country_name = country.name if country else "Unknown"
+    
+    # Get branch name
+    branch_name = None
+    if request.branch_id and country:
+        branch = next((b for b in country.branches if b["id"] == request.branch_id), None)
+        branch_name = branch["name"] if branch else None
+    
+    # Find the role
+    role = next((r for r in DEMO_ROLES if r.id in request.role_ids), None) if request.role_ids else None
+    role_name = role.name if role else "Compliance Analyst"
+    role_permissions = role.permissions if role else ["screen:individual", "workflow:view"]
+    
     new_user = UserResponse(
         id=len(DEMO_USERS) + 1,
         email=request.email,
         full_name=request.full_name,
         country_id=request.country_id,
-        country_name="Qatar",
+        country_name=country_name,
         branch_id=request.branch_id,
-        branch_name="Branch" if request.branch_id else None,
-        roles=["Compliance Analyst"],
-        permissions=["screen:individual", "workflow:view"],
+        branch_name=branch_name,
+        roles=[role_name],
+        permissions=role_permissions,
         is_active=request.is_active,
         last_login=None,
         created_at=datetime.utcnow().isoformat(),
     )
+    
+    # Add to DEMO_USERS list so it persists in session
+    DEMO_USERS.append(new_user)
     
     # Log audit
     audit_service.log(

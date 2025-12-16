@@ -4,6 +4,7 @@ import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Screening } from './pages/Screening';
+import { DailyScreening } from './pages/DailyScreening';
 import { Workflow } from './pages/Workflow';
 import { Reports } from './pages/Reports';
 import { AuditLog } from './pages/AuditLog';
@@ -54,6 +55,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="command-center" element={<InvestigationDashboard />} />
             <Route path="screening" element={<Screening />} />
+            <Route path="daily-screening" element={<DailyScreening />} />
             <Route path="entity-graph" element={<EntityGraph />} />
             <Route path="workflow" element={<Workflow />} />
             <Route path="reports" element={<Reports />} />
