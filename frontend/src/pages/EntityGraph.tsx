@@ -144,32 +144,127 @@ export default function EntityGraph() {
   const handleGenerateReport = (entity: EntityNode) => {
     setActionLoading('report');
     
+    // Generate entity-type specific risk factors
+    const individualRiskFactors = [
+      { factor: 'Full Name Match', value: '95%', weight: 'Critical', score: 95 },
+      { factor: 'Date of Birth Match', value: '80%', weight: 'High', score: 80 },
+      { factor: 'Nationality Match', value: '100%', weight: 'High', score: 100 },
+      { factor: 'Passport/ID Match', value: 'N/A', weight: 'Medium', score: 0 },
+      { factor: 'PEP Status', value: 'Under Review', weight: 'High', score: 50 },
+      { factor: 'Adverse Media', value: '2 Articles Found', weight: 'Medium', score: 70 },
+      { factor: 'Network Risk', value: 'HIGH', weight: 'Critical', score: 85 },
+    ];
+
+    const corporateRiskFactors = [
+      { factor: 'Company Name Match', value: '92%', weight: 'Critical', score: 92 },
+      { factor: 'Registration Number', value: 'Verified', weight: 'High', score: 100 },
+      { factor: 'Country of Incorporation', value: 'High Risk Jurisdiction', weight: 'Critical', score: 75 },
+      { factor: 'Beneficial Ownership', value: 'Opaque Structure', weight: 'Critical', score: 80 },
+      { factor: 'Shell Company Indicators', value: 'Detected', weight: 'Critical', score: 85 },
+      { factor: 'Industry Risk (NAICS)', value: 'Medium - Financial Services', weight: 'Medium', score: 55 },
+      { factor: 'Sanctioned Directors/UBOs', value: '1 Match Found', weight: 'Critical', score: 90 },
+      { factor: 'Adverse Media', value: '3 Negative Articles', weight: 'High', score: 65 },
+      { factor: 'Regulatory Actions', value: 'None Found', weight: 'Medium', score: 0 },
+      { factor: 'Network Risk', value: 'HIGH', weight: 'Critical', score: 88 },
+    ];
+
     // Generate a detailed report
     const report = {
+      reportId: `RPT-${Date.now()}`,
       generatedAt: new Date().toISOString(),
+      generatedBy: 'ScreenGuard AML Engine v1.0',
+      
       entity: {
         name: entity.name,
-        type: entity.type,
-        riskLevel: entity.risk,
+        type: entity.type === 'person' ? 'Individual' : 'Corporate Entity',
+        riskLevel: entity.risk.toUpperCase(),
+        overallScore: entity.risk === 'sanctioned' ? 100 : entity.risk === 'high' ? 85 : entity.risk === 'medium' ? 60 : 30,
         metadata: entity.metadata,
       },
+      
+      screeningDetails: entity.type === 'person' ? {
+        fullName: entity.name,
+        dateOfBirth: entity.metadata?.dob || 'Not provided',
+        nationality: entity.metadata?.nationality || 'Unknown',
+        passportNumber: 'Not provided',
+        nationalId: 'Not provided',
+        addressCountry: entity.metadata?.address || 'Unknown',
+      } : {
+        companyName: entity.name,
+        registrationNumber: entity.metadata?.registration || 'Not provided',
+        countryOfIncorporation: entity.metadata?.country || 'Unknown',
+        incorporationDate: entity.metadata?.founded || 'Unknown',
+        registeredAddress: entity.metadata?.address || 'Not provided',
+        businessType: entity.metadata?.industry || 'Not classified',
+        ultimateBeneficialOwners: entity.metadata?.ubos || ['Information not available'],
+        directors: entity.metadata?.directors || ['Information not available'],
+      },
+      
+      sanctionsScreening: {
+        listsChecked: ['OFAC SDN', 'UN Consolidated', 'EU Financial Sanctions', 'UK HMT', 'Local Watchlist'],
+        matchesFound: entity.risk === 'sanctioned' ? 1 : 0,
+        matchedLists: entity.metadata?.lists || [],
+        sanctionPrograms: entity.metadata?.programs || [],
+      },
+      
+      riskFactors: entity.type === 'person' ? individualRiskFactors : corporateRiskFactors,
+      
       networkAnalysis: {
         totalConnections: entity.connections.length,
+        highRiskConnections: entity.connections.filter(id => {
+          const conn = entities.find(e => e.id === id);
+          return conn && (conn.risk === 'high' || conn.risk === 'sanctioned');
+        }).length,
         connectedEntities: entity.connections.map(id => {
           const connected = entities.find(e => e.id === id);
-          return connected ? { name: connected.name, type: connected.type, risk: connected.risk } : null;
+          return connected ? { 
+            name: connected.name, 
+            type: connected.type === 'person' ? 'Individual' : 'Corporate',
+            riskLevel: connected.risk.toUpperCase(),
+            relationship: connections.find(c => 
+              (c.from === entity.id && c.to === id) || (c.to === entity.id && c.from === id)
+            )?.type || 'Associated'
+          } : null;
         }).filter(Boolean),
       },
-      riskFactors: [
-        { factor: 'Name Match Score', value: '95%', weight: 'High' },
-        { factor: 'Network Connections', value: entity.connections.length, weight: 'Medium' },
-        { factor: 'Sanctions List', value: entity.metadata?.lists?.join(', ') || 'N/A', weight: 'Critical' },
-      ],
-      recommendation: entity.risk === 'sanctioned' 
-        ? 'BLOCK - Entity is on active sanctions list' 
-        : entity.risk === 'high' 
-        ? 'REVIEW - High risk indicators require manual review'
-        : 'MONITOR - Continue standard monitoring',
+      
+      recommendation: {
+        action: entity.risk === 'sanctioned' 
+          ? 'BLOCK' 
+          : entity.risk === 'high' 
+          ? 'ESCALATE'
+          : entity.risk === 'medium'
+          ? 'REVIEW'
+          : 'APPROVE',
+        description: entity.risk === 'sanctioned' 
+          ? 'Entity is on active sanctions list. Transaction must be blocked and reported to compliance.'
+          : entity.risk === 'high' 
+          ? 'High risk indicators detected. Escalate to senior compliance officer for review.'
+          : entity.risk === 'medium'
+          ? 'Medium risk indicators present. Enhanced due diligence recommended.'
+          : 'Low risk profile. Standard monitoring procedures apply.',
+        requiredActions: entity.risk === 'sanctioned' ? [
+          'Block all transactions immediately',
+          'File Suspicious Activity Report (SAR)',
+          'Notify compliance officer',
+          'Document decision and rationale',
+        ] : entity.risk === 'high' ? [
+          'Conduct enhanced due diligence',
+          'Verify beneficial ownership',
+          'Review adverse media in detail',
+          'Escalate to senior reviewer',
+        ] : [
+          'Continue standard monitoring',
+          'Update records as needed',
+        ],
+      },
+      
+      auditTrail: {
+        screenedBy: 'System - Automated Screening',
+        screenedAt: new Date().toISOString(),
+        reviewStatus: 'Pending Review',
+        caseId: null,
+      },
     };
 
     // Download as JSON
@@ -583,50 +678,169 @@ export default function EntityGraph() {
                 </button>
               </div>
 
-              {/* Risk Score Breakdown */}
+              {/* Risk Score Breakdown - Different for Individual vs Corporate */}
               <div className="bg-white/5 rounded-xl p-4 mb-4">
                 <h4 className="text-white font-medium mb-3 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-violet-400" />
                   Risk Score Breakdown
+                  <span className="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 ml-auto">
+                    {selectedEntity.type === 'person' ? 'Individual' : 'Corporate'}
+                  </span>
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-400">Name Match</span>
-                      <span className="text-red-400">95%</span>
+                
+                {selectedEntity.type === 'person' ? (
+                  /* Individual Risk Factors */
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Full Name Match</span>
+                        <span className="text-red-400">95%</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '95%' }} />
+                      </div>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-500 rounded-full" style={{ width: '95%' }} />
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Date of Birth</span>
+                        <span className="text-orange-400">80%</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '80%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Nationality</span>
+                        <span className="text-yellow-400">100%</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '100%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Passport/ID Match</span>
+                        <span className="text-green-400">N/A</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-slate-600 rounded-full" style={{ width: '0%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">PEP Status</span>
+                        <span className="text-yellow-400">Review</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '50%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Adverse Media</span>
+                        <span className="text-orange-400">Found</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '70%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Network Risk</span>
+                        <span className="text-red-400">HIGH</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '85%' }} />
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-400">DOB Match</span>
-                      <span className="text-orange-400">80%</span>
+                ) : (
+                  /* Corporate Risk Factors */
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Company Name Match</span>
+                        <span className="text-red-400">92%</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '92%' }} />
+                      </div>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500 rounded-full" style={{ width: '80%' }} />
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Registration Number</span>
+                        <span className="text-green-400">Verified</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 rounded-full" style={{ width: '100%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Country of Incorporation</span>
+                        <span className="text-yellow-400">High Risk</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '75%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Beneficial Ownership</span>
+                        <span className="text-orange-400">Opaque</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '80%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Shell Company Indicators</span>
+                        <span className="text-red-400">Detected</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '85%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Industry Risk (NAICS)</span>
+                        <span className="text-yellow-400">Medium</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full" style={{ width: '55%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Sanctioned Directors/UBOs</span>
+                        <span className="text-red-400">1 Found</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '90%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Adverse Media</span>
+                        <span className="text-orange-400">3 Articles</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '65%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-slate-400">Network Risk</span>
+                        <span className="text-red-400">HIGH</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: '88%' }} />
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-400">Nationality Match</span>
-                      <span className="text-yellow-400">100%</span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-yellow-500 rounded-full" style={{ width: '100%' }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-400">Network Risk</span>
-                      <span className="text-red-400">HIGH</span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-500 rounded-full" style={{ width: '85%' }} />
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Metadata */}
