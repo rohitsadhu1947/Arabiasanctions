@@ -123,11 +123,18 @@ export function Reports() {
         csvContent += `With Matches,${screeningSummary?.totals.with_matches}\n`;
         csvContent += `Auto Released,${screeningSummary?.totals.auto_released}\n`;
         csvContent += `Pending Review,${screeningSummary?.totals.pending_review}\n\n`;
-        csvContent += 'Risk Level,Percentage\n';
-        csvContent += `Low,${screeningSummary?.by_risk_level.low}%\n`;
-        csvContent += `Medium,${screeningSummary?.by_risk_level.medium}%\n`;
-        csvContent += `High,${screeningSummary?.by_risk_level.high}%\n`;
-        csvContent += `Critical,${screeningSummary?.by_risk_level.critical}%\n`;
+        // Calculate proper percentages
+        const riskTotal = (screeningSummary?.by_risk_level.low || 0) + 
+                          (screeningSummary?.by_risk_level.medium || 0) + 
+                          (screeningSummary?.by_risk_level.high || 0) + 
+                          (screeningSummary?.by_risk_level.critical || 0);
+        const getPct = (val: number) => riskTotal > 0 ? ((val / riskTotal) * 100).toFixed(1) : '0.0';
+        
+        csvContent += 'Risk Level,Count,Percentage\n';
+        csvContent += `Low,${screeningSummary?.by_risk_level.low},${getPct(screeningSummary?.by_risk_level.low || 0)}%\n`;
+        csvContent += `Medium,${screeningSummary?.by_risk_level.medium},${getPct(screeningSummary?.by_risk_level.medium || 0)}%\n`;
+        csvContent += `High,${screeningSummary?.by_risk_level.high},${getPct(screeningSummary?.by_risk_level.high || 0)}%\n`;
+        csvContent += `Critical,${screeningSummary?.by_risk_level.critical},${getPct(screeningSummary?.by_risk_level.critical || 0)}%\n`;
       } else {
         csvContent = 'Audit Log Export\n';
         csvContent += `Generated,${new Date().toISOString()}\n\n`;

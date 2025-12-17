@@ -126,12 +126,22 @@ export function Dashboard() {
     );
   }
 
-  const riskDistribution = stats ? [
-    { name: 'Low', value: stats.by_risk_level.low || 78, color: '#10b981' },
-    { name: 'Medium', value: stats.by_risk_level.medium || 15, color: '#f59e0b' },
-    { name: 'High', value: stats.by_risk_level.high || 5, color: '#ef4444' },
-    { name: 'Critical', value: stats.by_risk_level.critical || 2, color: '#dc2626' },
-  ] : [];
+  // Calculate percentages from raw counts
+  const riskDistribution = stats ? (() => {
+    const total = (stats.by_risk_level.low || 0) + 
+                  (stats.by_risk_level.medium || 0) + 
+                  (stats.by_risk_level.high || 0) + 
+                  (stats.by_risk_level.critical || 0);
+    
+    const getPercent = (val: number) => total > 0 ? Math.round((val / total) * 100) : 0;
+    
+    return [
+      { name: 'Low', value: getPercent(stats.by_risk_level.low || 0), count: stats.by_risk_level.low || 0, color: '#10b981' },
+      { name: 'Medium', value: getPercent(stats.by_risk_level.medium || 0), count: stats.by_risk_level.medium || 0, color: '#f59e0b' },
+      { name: 'High', value: getPercent(stats.by_risk_level.high || 0), count: stats.by_risk_level.high || 0, color: '#ef4444' },
+      { name: 'Critical', value: getPercent(stats.by_risk_level.critical || 0), count: stats.by_risk_level.critical || 0, color: '#dc2626' },
+    ];
+  })() : [];
 
   const screeningTrend = stats?.daily_trend?.slice(-7).map((d, i) => ({
     date: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i % 7],
@@ -337,16 +347,23 @@ export function Dashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} formatter={(value: number) => [`${value}%`, 'Percentage']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} 
+                  formatter={(value: number, name: string, props: any) => {
+                    const item = riskDistribution.find(d => d.name === props.payload.name);
+                    return [`${value}% (${item?.count || 0} matches)`, props.payload.name];
+                  }} 
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
-          <div className="grid grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-2 gap-2 mt-2 px-2">
             {riskDistribution.map((item) => (
               <div key={item.name} className="flex items-center gap-2 text-sm">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                 <span className="text-surface-400">{item.name}</span>
                 <span className="text-surface-200 font-medium ml-auto">{item.value}%</span>
+                <span className="text-surface-500 text-xs">({item.count})</span>
               </div>
             ))}
           </div>
