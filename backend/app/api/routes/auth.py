@@ -85,9 +85,9 @@ def require_permission(permission: str):
 @router.post("/token", response_model=LoginResponse)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     """OAuth2 compatible token endpoint."""
-    # In production, validate against database
-    # For demo, accept any credentials with password "password123"
-    if form_data.password != "password123":
+    # Demo credentials - accept either password
+    valid_passwords = ["Admin123!", "password123"]
+    if form_data.password not in valid_passwords:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
