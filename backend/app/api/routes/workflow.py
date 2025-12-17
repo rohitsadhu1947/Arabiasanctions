@@ -762,6 +762,107 @@ async def create_case(
     )
 
 
+# Schema for Entity Graph escalations
+from pydantic import BaseModel as PydanticBaseModel
+
+class EntityGraphEscalation(PydanticBaseModel):
+    """Request body for Entity Graph escalation"""
+    screened_name: str
+    match_score: float = 85.0
+    sanction_list: Optional[str] = None
+    country_code: str = "QAT"
+    status: Optional[str] = "escalated"
+    priority: Optional[str] = "high"
+    escalation_reason: Optional[str] = None
+
+
+@router.post("/escalate-from-graph", response_model=APIResponse[WorkflowCaseResponse])
+async def escalate_from_entity_graph(
+    request: EntityGraphEscalation,
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """Create an escalated workflow case from Entity Network Analysis."""
+    global NEXT_CASE_ID
+    
+    # Map priority string to enum
+    priority_map = {
+        "critical": CasePriority.URGENT,
+        "urgent": CasePriority.URGENT,
+        "high": CasePriority.HIGH,
+        "medium": CasePriority.MEDIUM,
+        "low": CasePriority.LOW,
+    }
+    priority = priority_map.get(request.priority.lower(), CasePriority.HIGH) if request.priority else CasePriority.HIGH
+    
+    # Determine initial status
+    initial_status = CaseStatus.ESCALATED if request.status == "escalated" else CaseStatus.OPEN
+    
+    case = {
+        "id": NEXT_CASE_ID,
+        "case_number": generate_case_number(),
+        "screening_result_id": NEXT_CASE_ID,
+        "screening_match_id": NEXT_CASE_ID,
+        "reference_id": f"NET-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}",
+        "status": initial_status,
+        "priority": priority,
+        "assigned_to_id": 3,  # Default to senior compliance
+        "assigned_to_name": "Michael Chen",
+        "assigned_by_id": current_user.id,
+        "assigned_by_name": current_user.full_name,
+        "escalation_level": 1 if initial_status == CaseStatus.ESCALATED else 0,
+        "escalated_from_name": current_user.full_name if initial_status == CaseStatus.ESCALATED else None,
+        "escalation_reason": request.escalation_reason or "Flagged via Entity Network Analysis - requires senior review",
+        "created_at": datetime.utcnow().isoformat(),
+        "due_date": (datetime.utcnow() + timedelta(hours=12)).isoformat(),
+        "sla_deadline": (datetime.utcnow() + timedelta(hours=12)).isoformat(),
+        "sla_breached": False,
+        "tat_hours": 0,
+        "resolution": None,
+        "resolution_notes": None,
+        "resolved_by_name": None,
+        "resolved_at": None,
+        "return_count": 0,
+        "max_returns": 3,
+        "country_code": request.country_code,
+        "branch_code": "DOH001" if request.country_code == "QAT" else "DXB001",
+        "screened_name": request.screened_name,
+        "highest_match_score": request.match_score / 100 if request.match_score > 1 else request.match_score,
+    }
+    
+    WORKFLOW_CASES[NEXT_CASE_ID] = case
+    CASE_ACTIONS[NEXT_CASE_ID] = [{
+        "id": 1,
+        "case_id": NEXT_CASE_ID,
+        "action_type": ActionType.CASE_CREATED.value,
+        "performed_by_name": current_user.full_name,
+        "performed_at": datetime.utcnow().isoformat(),
+        "comment": f"Case escalated from Entity Network Analysis. Match score: {request.match_score}%. List: {request.sanction_list or 'Network Analysis'}",
+        "previous_status": None,
+        "new_status": initial_status,
+    }]
+    
+    if initial_status == CaseStatus.ESCALATED:
+        # Add escalation action
+        CASE_ACTIONS[NEXT_CASE_ID].append({
+            "id": 2,
+            "case_id": NEXT_CASE_ID,
+            "action_type": ActionType.ESCALATE.value,
+            "performed_by_name": current_user.full_name,
+            "performed_at": datetime.utcnow().isoformat(),
+            "comment": request.escalation_reason or "Escalated for senior compliance review",
+            "previous_status": CaseStatus.OPEN,
+            "new_status": CaseStatus.ESCALATED,
+        })
+    
+    NEXT_CASE_ID += 1
+    
+    return APIResponse(
+        success=True,
+        message=f"Case escalated successfully. Assigned to {case['assigned_to_name']}.",
+        data=case_to_response(case),
+    )
+
+
 @router.get("/cases/{case_id}", response_model=APIResponse[WorkflowCaseResponse])
 async def get_case(
     case_id: int,

@@ -23,6 +23,7 @@ class CasePriority(str, Enum):
 
 
 class ActionType(str, Enum):
+    CASE_CREATED = "case_created"
     ASSIGN = "assign"
     REVIEW = "review"
     APPROVE = "approve"
@@ -32,6 +33,8 @@ class ActionType(str, Enum):
     COMMENT = "comment"
     ATTACH = "attach"
     CLOSE = "close"
+    FLAG = "flag"
+    RELEASE = "release"
 
 
 # ==================== Case ====================
