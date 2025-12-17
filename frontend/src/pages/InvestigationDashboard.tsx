@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, AlertTriangle, Clock,
+ AlertTriangle, Clock,
   ChevronRight, ArrowUpRight, ArrowDownRight,
   Target, Zap, BarChart3, PieChart, Bell,
   Layers, Check, X, Download, Settings

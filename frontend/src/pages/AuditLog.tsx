@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
+
 import { Input } from '../components/ui/Input';
 import { 
   Shield, 
   Search, 
   Download, 
   Filter, 
-  Clock,
+
   User,
-  AlertTriangle,
+
   CheckCircle,
   XCircle,
   Activity,

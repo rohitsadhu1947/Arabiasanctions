@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
+
 import { Button } from '../components/ui/Button';
 import { 
   Search, 
   AlertTriangle, 
   CheckCircle, 
   Clock, 
-  TrendingUp,
+
   ArrowUpRight,
   ArrowDownRight,
-  Shield,
-  Users,
+
+
   FileCheck,
-  Activity,
+
   Loader2,
 } from 'lucide-react';
 import { cn, formatNumber } from '../lib/utils';
@@ -349,7 +349,7 @@ export function Dashboard() {
                 </Pie>
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f1f5f9' }} 
-                  formatter={(value: number, name: string, props: any) => {
+                  formatter={(value: number, _name: string, props: any) => {
                     const item = riskDistribution.find(d => d.name === props.payload.name);
                     return [`${value}% (${item?.count || 0} matches)`, props.payload.name];
                   }} 

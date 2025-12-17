@@ -275,7 +275,9 @@ const NETWORK_EXAMPLES: NetworkExample[] = [
 ];
 
 // Default to first network
+// @ts-ignore
 const DEMO_ENTITIES: EntityNode[] = NETWORK_EXAMPLES[0].entities;
+// @ts-ignore
 const DEMO_CONNECTIONS: Connection[] = NETWORK_EXAMPLES[0].connections;
 
 // Risk Factor display component

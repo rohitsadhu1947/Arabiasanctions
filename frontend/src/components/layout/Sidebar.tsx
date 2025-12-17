@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   Network,
   Radar,
-  Target,
+
   Calendar,
 } from 'lucide-react';
 import { useState } from 'react';

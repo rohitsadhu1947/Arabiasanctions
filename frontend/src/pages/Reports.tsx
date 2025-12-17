@@ -4,12 +4,8 @@ import { Button } from '../components/ui/Button';
 import { 
   Download, 
   FileText, 
-  BarChart3, 
-  PieChart,
-  TrendingUp,
   Loader2,
   Calendar,
-  Filter,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { reportsApi } from '../lib/api';
@@ -92,24 +88,6 @@ export function Reports() {
 
   const handleExport = async (type: 'screenings' | 'audit') => {
     try {
-      // Create export data
-      const exportData = type === 'screenings' 
-        ? {
-            exportedAt: new Date().toISOString(),
-            period: screeningSummary?.period,
-            totals: screeningSummary?.totals,
-            riskDistribution: screeningSummary?.by_risk_level,
-            sanctionLists: screeningSummary?.by_sanction_list,
-            dailyTrend: screeningSummary?.daily_trend,
-          }
-        : {
-            exportedAt: new Date().toISOString(),
-            auditType: 'compliance_audit_log',
-            period: screeningSummary?.period,
-            totalActions: 1247,
-            categories: ['Screening', 'Workflow', 'User Management', 'Configuration'],
-          };
-      
       // Generate CSV content
       let csvContent = '';
       if (type === 'screenings') {

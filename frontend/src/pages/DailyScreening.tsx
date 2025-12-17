@@ -5,14 +5,14 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { 
-  Calendar,
+
   Play,
   Pause,
   Clock,
   RefreshCw,
   CheckCircle,
   AlertTriangle,
-  FileText,
+
   Settings,
   Download,
   Loader2,
@@ -303,7 +303,7 @@ export function DailyScreening() {
       case 'scheduled':
         return <Badge variant="info">Scheduled</Badge>;
       case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
+        return <Badge variant="danger">Failed</Badge>;
       case 'paused':
         return <Badge variant="default">Paused</Badge>;
     }
@@ -811,7 +811,7 @@ export function DailyScreening() {
                       <p className="font-medium text-surface-200">{match.name}</p>
                       <p className="text-xs text-surface-500">{match.list}</p>
                     </div>
-                    <Badge variant={match.score >= 90 ? 'destructive' : 'warning'}>{match.score}%</Badge>
+                    <Badge variant={match.score >= 90 ? 'danger' : 'warning'}>{match.score}%</Badge>
                   </div>
                 ))}
               </div>
